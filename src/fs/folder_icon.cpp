@@ -10,9 +10,7 @@
 #include <unistd.h>
 
 namespace {
-  std::optional<luciole::FolderCustomIcon> normalize(
-      std::string value, luciole::FolderIconOrigin origin
-  ) {
+  std::optional<luciole::FolderCustomIcon> normalize(std::string value, luciole::FolderIconOrigin origin) {
     const auto begin = value.find_first_not_of(" \t\r\n");
     if (begin == std::string::npos) {
       return std::nullopt;
@@ -30,9 +28,8 @@ namespace {
     };
   }
 
-  std::optional<luciole::FolderCustomIcon> directoryFileIcon(
-      const std::string& folderPath, luciole::FolderIconOrigin origin
-  ) {
+  std::optional<luciole::FolderCustomIcon>
+  directoryFileIcon(const std::string& folderPath, luciole::FolderIconOrigin origin) {
     const std::string path = folderPath + "/.directory";
     const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
     if (fd < 0) {
@@ -87,9 +84,7 @@ std::optional<luciole::FolderCustomIcon> luciole::folderIconFor(GFileInfo* info,
   return std::nullopt;
 }
 
-std::optional<luciole::FolderCustomIcon> luciole::folderIconForLocal(
-    const std::string& parentPath, const char* name
-) {
+std::optional<luciole::FolderCustomIcon> luciole::folderIconForLocal(const std::string& parentPath, const char* name) {
   if (name == nullptr || *name == '\0') {
     return std::nullopt;
   }
@@ -108,11 +103,9 @@ void luciole::applyFolderCustomIcon(FileIconSource& source, const FolderCustomIc
 
 std::optional<std::string> luciole::readFolderCustomIcon(const Location& folder, GCancellable* cancellable) {
   GError* rawError = nullptr;
-  const std::string attributes =
-      std::string(G_FILE_ATTRIBUTE_STANDARD_TYPE ",") + kFolderCustomIconAttribute;
+  const std::string attributes = std::string(G_FILE_ATTRIBUTE_STANDARD_TYPE ",") + kFolderCustomIconAttribute;
   const GioPtr<GFileInfo> info(g_file_query_info(
-      gioFile(folder).get(), attributes.c_str(),
-      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, cancellable, &rawError
+      gioFile(folder).get(), attributes.c_str(), G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, cancellable, &rawError
   ));
   const GErrorPtr error(rawError);
   if (info && g_file_info_get_file_type(info.get()) == G_FILE_TYPE_DIRECTORY) {
@@ -145,13 +138,13 @@ namespace {
       return true; // No Icon key stored.
     }
     gsize groups = 0;
-    const std::unique_ptr<gchar*, decltype(&g_strfreev)> names(
-        g_key_file_get_groups(file.get(), &groups), &g_strfreev);
+    const std::unique_ptr<gchar*, decltype(&g_strfreev)> names(g_key_file_get_groups(file.get(), &groups), &g_strfreev);
     gsize keys = 0;
     for (gsize i = 0; i < groups; ++i) {
       gsize count = 0;
       const std::unique_ptr<gchar*, decltype(&g_strfreev)> keyNames(
-          g_key_file_get_keys(file.get(), names.get()[i], &count, nullptr), &g_strfreev);
+          g_key_file_get_keys(file.get(), names.get()[i], &count, nullptr), &g_strfreev
+      );
       keys += count;
     }
     if (keys == 0) {
@@ -160,9 +153,7 @@ namespace {
     }
     gsize length = 0;
     GError* dataError = nullptr;
-    const std::unique_ptr<gchar, decltype(&g_free)> data(
-        g_key_file_to_data(file.get(), &length, &dataError), &g_free
-    );
+    const std::unique_ptr<gchar, decltype(&g_free)> data(g_key_file_to_data(file.get(), &length, &dataError), &g_free);
     if (!data) {
       g_clear_error(&dataError);
       return false;

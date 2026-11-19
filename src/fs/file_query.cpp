@@ -154,7 +154,7 @@ void luciole::queryFileIcon(
             gioFile(location).get(),
             // Keeps metadata::custom-icon in sync with kFolderCustomIconAttribute (fs/folder_icon.h).
             G_FILE_ATTRIBUTE_STANDARD_TYPE "," G_FILE_ATTRIBUTE_STANDARD_NAME "," G_FILE_ATTRIBUTE_STANDARD_ICON
-            ",metadata::custom-icon",
+                                           ",metadata::custom-icon",
             G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, gioCancellable(token), &rawError
         ));
         const GErrorPtr error(rawError);

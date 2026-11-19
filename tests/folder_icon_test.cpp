@@ -1,6 +1,5 @@
-#include "fs/folder_icon.h"
-
 #include "fs/file_icon_source.h"
+#include "fs/folder_icon.h"
 #include "fs/gio_interop.h"
 #include "system/icon_resolver.h"
 #include "test_check.h"
@@ -74,7 +73,8 @@ namespace {
     luciole::FileIconSource source;
     source.names = {"folder"};
     luciole::applyFolderCustomIcon(
-        source, FolderCustomIcon{.name = "/tmp/custom.png", .origin = luciole::FolderIconOrigin::DirectoryFile, .isPath = true}
+        source,
+        FolderCustomIcon{.name = "/tmp/custom.png", .origin = luciole::FolderIconOrigin::DirectoryFile, .isPath = true}
     );
     TEST_CHECK(source.filePath == "/tmp/custom.png");
     TEST_CHECK(source.names.size() == 1 && source.names.front() == "folder");
@@ -119,12 +119,12 @@ namespace {
     TEST_CHECK(generic->names.front() != "folder-red");
 
     // The pooled local path does the same from the parent path alone.
-    const auto local = pool.getLocal("both", G_FILE_TYPE_DIRECTORY, "inode/directory",
-        luciole::Location::fromPath(root.native()));
+    const auto local =
+        pool.getLocal("both", G_FILE_TYPE_DIRECTORY, "inode/directory", luciole::Location::fromPath(root.native()));
     TEST_CHECK(!local->names.empty() && local->names.front() == "folder-blue");
     fs::create_directory(root / "plain");
-    const auto localGeneric = pool.getLocal("plain", G_FILE_TYPE_DIRECTORY, "inode/directory",
-        luciole::Location::fromPath(root.native()));
+    const auto localGeneric =
+        pool.getLocal("plain", G_FILE_TYPE_DIRECTORY, "inode/directory", luciole::Location::fromPath(root.native()));
     TEST_CHECK(localGeneric->names.front() != "folder-blue");
   }
 

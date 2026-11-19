@@ -37,7 +37,8 @@ class PropertiesController {
 public:
   PropertiesController(
       PageContext& page, luciole::FileIconCache& icons,
-      std::function<void(const luciole::Location&, std::function<void()>)> changeFolderIcon = {});
+      std::function<void(const luciole::Location&, std::function<void()>)> changeFolderIcon = {}
+  );
 
   // `captureCurrentLocation` reads the permissions of the first target's location instead of its listed entry.
   void show(const std::vector<luciole::DirectoryEntry>& targets, bool captureCurrentLocation = false);

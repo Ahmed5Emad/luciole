@@ -39,9 +39,7 @@ public:
   // caller (Properties), and a successful apply does too.
   void open(const luciole::Location& folder, std::function<void()> onReturn = {});
   // Refreshed the Properties dialog after an outside change, when set.
-  void setOnChanged(std::function<void(const luciole::Location&)> callback) {
-    m_onChanged = std::move(callback);
-  }
+  void setOnChanged(std::function<void(const luciole::Location&)> callback) { m_onChanged = std::move(callback); }
   // Keyboard hook in BrowserPage::keyboard(): Escape cancels the picker through
   // the same path as its Cancel button.
   bool escapeKey(const KeyboardEvent& event);

@@ -15,9 +15,7 @@
 #include "wayland/wayland_seat.h"
 
 namespace {
-  bool eligibleFolder(const luciole::Location& folder) {
-    return folder.nativePath().has_value() && !folder.isTrash();
-  }
+  bool eligibleFolder(const luciole::Location& folder) { return folder.nativePath().has_value() && !folder.isTrash(); }
 } // namespace
 
 FolderIconController::FolderIconController(PageContext& page, luciole::FileIconCache& icons)
@@ -114,8 +112,7 @@ void FolderIconController::finishWrite(const WriteResult& result) {
   }
   if (!result.ok) {
     m_picker->setEnabled(true);
-    const std::string error = result.error.empty() ? "Could not change the folder icon. Try again."
-                                                   : result.error;
+    const std::string error = result.error.empty() ? "Could not change the folder icon. Try again." : result.error;
     m_picker->showError(error);
     m_page.actionError(error);
     return;

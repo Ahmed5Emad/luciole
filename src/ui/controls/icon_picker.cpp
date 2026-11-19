@@ -2,8 +2,8 @@
 
 #include "cursor-shape-v1-client-protocol.h"
 #include "thumbnails/file_icon_cache.h"
-#include "ui/builders.h"
 #include "ui/browser/file_icon.h"
+#include "ui/builders.h"
 #include "ui/controls/virtual_grid_view.h"
 #include "ui/dialogs/dialog_chrome.h"
 #include "ui/palette.h"
