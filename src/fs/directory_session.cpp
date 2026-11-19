@@ -1153,6 +1153,8 @@ struct luciole::DirectorySession::State : std::enable_shared_from_this<State> {
           .append(",")
           .append(luciole::kFolderCustomIconAttribute)
           .append(",")
+          .append(luciole::kFolderCustomIconNameAttribute)
+          .append(",")
           .append(G_FILE_ATTRIBUTE_STANDARD_TARGET_URI);
     }
     if (scan->trash) {

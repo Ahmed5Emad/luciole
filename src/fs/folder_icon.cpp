@@ -7,6 +7,7 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <string>
+#include <string_view>
 #include <unistd.h>
 
 namespace {
@@ -20,12 +21,54 @@ namespace {
     if (value.empty()) {
       return std::nullopt;
     }
-    const bool isPath = value.front() == '/';
+    if (value.front() == '/') {
+      return luciole::FolderCustomIcon{
+          .name = std::move(value),
+          .origin = origin,
+          .isPath = true,
+      };
+    }
+    // A relative path is neither a theme name nor usable: refuse it rather
+    // than resolving it against the folder.
+    if (value.contains('/')) {
+      return std::nullopt;
+    }
     return luciole::FolderCustomIcon{
         .name = std::move(value),
         .origin = origin,
-        .isPath = isPath,
+        .isPath = false,
     };
+  }
+
+  // custom-icon holds a file:// URI; anything else there is not an image.
+  std::optional<std::string> fileUriToPath(const char* uri) {
+    if (uri == nullptr || !std::string_view(uri).starts_with("file://")) {
+      return std::nullopt;
+    }
+    GError* rawError = nullptr;
+    const luciole::GString path(g_filename_from_uri(uri, nullptr, &rawError));
+    g_clear_error(&rawError);
+    if (!path || *path == '\0') {
+      return std::nullopt;
+    }
+    return std::string(path.get());
+  }
+
+  std::optional<luciole::FolderCustomIcon> metadataIcon(GFileInfo* info) {
+    if (info == nullptr) {
+      return std::nullopt;
+    }
+    if (const char* uri = g_file_info_get_attribute_string(info, luciole::kFolderCustomIconAttribute)) {
+      if (auto path = fileUriToPath(uri)) {
+        return luciole::FolderCustomIcon{
+            .name = std::move(*path), .origin = luciole::FolderIconOrigin::Metadata, .isPath = true
+        };
+      }
+    }
+    if (const char* name = g_file_info_get_attribute_string(info, luciole::kFolderCustomIconNameAttribute)) {
+      return normalize(name, luciole::FolderIconOrigin::Metadata);
+    }
+    return std::nullopt;
   }
 
   std::optional<luciole::FolderCustomIcon>
@@ -60,15 +103,7 @@ namespace {
   }
 } // namespace
 
-std::optional<luciole::FolderCustomIcon> luciole::folderIconFromInfo(GFileInfo* info) {
-  if (info == nullptr) {
-    return std::nullopt;
-  }
-  if (const char* value = infoString(info, kFolderCustomIconAttribute)) {
-    return normalize(value, FolderIconOrigin::Metadata);
-  }
-  return std::nullopt;
-}
+std::optional<luciole::FolderCustomIcon> luciole::folderIconFromInfo(GFileInfo* info) { return metadataIcon(info); }
 
 std::optional<luciole::FolderCustomIcon> luciole::folderIconFromDirectoryFile(const std::string& folderPath) {
   return directoryFileIcon(folderPath, FolderIconOrigin::DirectoryFile);
@@ -88,7 +123,22 @@ std::optional<luciole::FolderCustomIcon> luciole::folderIconForLocal(const std::
   if (name == nullptr || *name == '\0') {
     return std::nullopt;
   }
-  return directoryFileIcon(parentPath + '/' + name, FolderIconOrigin::DirectoryFile);
+  const std::string folderPath = parentPath + '/' + name;
+  // GVFS metadata first (a file:// image URI, then a theme name), matching
+  // the enumerated-info order; .directory last.
+  const std::string attributes = std::string(kFolderCustomIconAttribute) + "," + kFolderCustomIconNameAttribute;
+  GError* rawError = nullptr;
+  const GioPtr<GFileInfo> info(g_file_query_info(
+      gioFile(Location::fromPath(folderPath)).get(), attributes.c_str(), G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, nullptr,
+      &rawError
+  ));
+  GErrorPtr error(rawError);
+  if (info) {
+    if (auto icon = metadataIcon(info.get())) {
+      return icon;
+    }
+  }
+  return directoryFileIcon(folderPath, FolderIconOrigin::DirectoryFile);
 }
 
 void luciole::applyFolderCustomIcon(FileIconSource& source, const FolderCustomIcon& icon) {
@@ -102,14 +152,17 @@ void luciole::applyFolderCustomIcon(FileIconSource& source, const FolderCustomIc
 }
 
 std::optional<std::string> luciole::readFolderCustomIcon(const Location& folder, GCancellable* cancellable) {
+  const std::string attributes = std::string(G_FILE_ATTRIBUTE_STANDARD_TYPE ",")
+      + kFolderCustomIconAttribute
+      + ","
+      + kFolderCustomIconNameAttribute;
   GError* rawError = nullptr;
-  const std::string attributes = std::string(G_FILE_ATTRIBUTE_STANDARD_TYPE ",") + kFolderCustomIconAttribute;
   const GioPtr<GFileInfo> info(g_file_query_info(
       gioFile(folder).get(), attributes.c_str(), G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, cancellable, &rawError
   ));
   const GErrorPtr error(rawError);
   if (info && g_file_info_get_file_type(info.get()) == G_FILE_TYPE_DIRECTORY) {
-    if (auto icon = folderIconFromInfo(info.get())) {
+    if (auto icon = metadataIcon(info.get())) {
       return icon->name;
     }
   }
@@ -122,6 +175,21 @@ std::optional<std::string> luciole::readFolderCustomIcon(const Location& folder,
 }
 
 namespace {
+  bool clearMetadataKey(GFile* file, const char* attribute, std::string& error) {
+    GError* rawError = nullptr;
+    const bool cleared = g_file_set_attribute(
+                             file, attribute, G_FILE_ATTRIBUTE_TYPE_INVALID, nullptr,
+                             G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, nullptr, &rawError
+                         )
+        != FALSE;
+    const luciole::GErrorPtr metadataError(rawError);
+    if (!cleared && metadataError) {
+      error = metadataError->message;
+      return false;
+    }
+    return true;
+  }
+
   // Best-effort removal of a stale .directory Icon so a metadata write cannot
   // be shadowed by it later (and vice versa on reset).
   bool clearDirectoryFileIcon(const std::string& folderPath) {
@@ -191,54 +259,96 @@ bool luciole::setFolderCustomIcon(const Location& folder, const std::string& ico
   }
   const auto path = folder.nativePath();
   // Local folders always get a .directory entry: the native fast listing path
-  // carries no GFileInfo, so metadata alone would never display there.
+  // used to carry no GFileInfo, so metadata alone would never display there.
   // Non-local folders rely on metadata only.
   std::string directoryError;
   const bool directoryOk = !path || writeDirectoryFileIcon(*path, iconName, directoryError);
-  GError* rawError = nullptr;
-  const bool stored = g_file_set_attribute_string(
-                          gioFile(folder).get(), kFolderCustomIconAttribute, iconName.c_str(),
-                          G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, nullptr, &rawError
-                      )
-      != FALSE;
-  GErrorPtr metadataError(rawError);
+  const GioPtr<GFile> file(gioFile(folder));
+  // A theme name belongs in custom-icon-name; an image file in custom-icon as
+  // a file:// URI. The other key is cleared so GNOME Files never sees stale
+  // data (including bare names this app used to store in custom-icon).
+  const bool image = iconName.starts_with('/') || iconName.starts_with("file://");
+  std::string imageUri;
+  if (iconName.starts_with('/')) {
+    GError* rawError = nullptr;
+    const GString uri(g_filename_to_uri(iconName.c_str(), nullptr, &rawError));
+    GErrorPtr uriError(rawError);
+    if (!uri) {
+      error = uriError ? uriError->message : "Could not address the image file.";
+      return false;
+    }
+    imageUri = uri.get();
+  } else if (iconName.starts_with("file://")) {
+    imageUri = iconName;
+  }
+  std::string metadataError;
+  bool stored = false;
+  if (image) {
+    GError* rawError = nullptr;
+    stored = g_file_set_attribute_string(
+                 file.get(), kFolderCustomIconAttribute, imageUri.c_str(), G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, nullptr,
+                 &rawError
+             )
+        != FALSE;
+    GErrorPtr storeError(rawError);
+    if (stored) {
+      stored = clearMetadataKey(file.get(), kFolderCustomIconNameAttribute, metadataError);
+    } else if (storeError) {
+      metadataError = storeError->message;
+    }
+  } else {
+    GError* rawError = nullptr;
+    stored = g_file_set_attribute_string(
+                 file.get(), kFolderCustomIconNameAttribute, iconName.c_str(), G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                 nullptr, &rawError
+             )
+        != FALSE;
+    GErrorPtr storeError(rawError);
+    if (stored) {
+      // Also clears bare theme names older versions stored in custom-icon.
+      stored = clearMetadataKey(file.get(), kFolderCustomIconAttribute, metadataError);
+    } else if (storeError) {
+      metadataError = storeError->message;
+    }
+  }
   if (path) {
     if (!directoryOk) {
       error = directoryError;
-      if (metadataError) {
-        error += " (" + std::string(metadataError->message) + ")";
+      if (!metadataError.empty()) {
+        error += " (" + metadataError + ")";
       }
       return false;
     }
-    // A metadata failure here only loses Nautilus interop, not the icon itself.
+    // A metadata failure here only loses GNOME Files interop, not the icon itself.
     return true;
   }
   if (stored) {
     return true;
   }
-  error = metadataError ? metadataError->message : "Setting a folder icon is not supported here.";
+  if (!metadataError.empty()) {
+    error = metadataError;
+  } else {
+    error = "Setting a folder icon is not supported here.";
+  }
   return false;
 }
 
 bool luciole::clearFolderCustomIcon(const Location& folder, std::string& error) {
-  GError* rawError = nullptr;
-  const bool cleared = g_file_set_attribute(
-                           gioFile(folder).get(), kFolderCustomIconAttribute, G_FILE_ATTRIBUTE_TYPE_INVALID, nullptr,
-                           G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, nullptr, &rawError
-                       )
-      != FALSE;
-  GErrorPtr metadataError(rawError);
+  const GioPtr<GFile> file(gioFile(folder));
+  std::string firstError;
+  const bool uriCleared = clearMetadataKey(file.get(), kFolderCustomIconAttribute, firstError);
+  std::string nameError;
+  const bool nameCleared = clearMetadataKey(file.get(), kFolderCustomIconNameAttribute, nameError);
   bool directoryOk = true;
   if (const auto path = folder.nativePath()) {
     directoryOk = clearDirectoryFileIcon(*path);
   }
-  if (cleared || metadataError == nullptr) {
-    return directoryOk;
+  if (!uriCleared || !nameCleared) {
+    // Metadata actively refused and no local fallback: report it.
+    if (!directoryOk || !folder.nativePath()) {
+      error = !firstError.empty() ? firstError : nameError;
+      return false;
+    }
   }
-  // Metadata actively refused and no local fallback: report it.
-  if (!directoryOk || !folder.nativePath()) {
-    error = metadataError->message;
-    return false;
-  }
-  return true;
+  return directoryOk;
 }
