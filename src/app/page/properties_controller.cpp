@@ -9,6 +9,7 @@
 #include "config/settings.h"
 #include "core/ui_phase.h"
 #include "fs/file_query.h"
+#include "fs/gio_interop.h"
 #include "fs/gio_ptr.h"
 #include "operations/permission_service.h"
 #include "platform/desktop_integration.h"
@@ -206,6 +207,9 @@ void PropertiesController::syncMetadata() {
   }
   if (m_folderTotals) {
     std::erase_if(fields, [](const auto& field) { return field.label == "Folder contents"; });
+    if (m_driveFacts) {
+      m_folderTotals->setFreeSpace(driveFreeSpace());
+    }
     m_folderTotals->sync(m_metadataWidth);
   }
   // The entry's own facts lead, so both kinds read as one table with one row rhythm.
@@ -388,6 +392,12 @@ PropertiesController::buildGeneral(const std::vector<luciole::DirectoryEntry>& t
       const luciole::GString size(entry.size ? g_format_size_full(*entry.size, G_FORMAT_SIZE_IEC_UNITS) : nullptr);
       field("Size", size ? size.get() : "Unknown");
     }
+    if (m_driveFacts) {
+      const std::string filesystem = m_driveFilesystemInfo && !m_driveFilesystemInfo->type.empty()
+          ? m_driveFilesystemInfo->type
+          : m_driveFacts->filesystem;
+      field("File system", filesystem.empty() ? "Unknown" : filesystem);
+    }
     if (entry.modifiedSeconds && *entry.modifiedSeconds <= static_cast<std::uint64_t>(G_MAXINT64)) {
       const std::unique_ptr<GDateTime, decltype(&g_date_time_unref)> date(
           g_date_time_new_from_unix_local(static_cast<gint64>(*entry.modifiedSeconds)), &g_date_time_unref
@@ -563,7 +573,10 @@ PropertiesController::Body PropertiesController::buildBody(
   };
 }
 
-void PropertiesController::show(const std::vector<luciole::DirectoryEntry>& targets, bool captureCurrentLocation) {
+void PropertiesController::show(
+    const std::vector<luciole::DirectoryEntry>& targets, bool captureCurrentLocation,
+    std::optional<luciole::DriveFacts> drive
+) {
   if (targets.empty()) {
     return;
   }
@@ -572,6 +585,13 @@ void PropertiesController::show(const std::vector<luciole::DirectoryEntry>& targ
       })) {
     m_page.actionError("A Properties request is still finishing.");
     return;
+  }
+  m_driveFacts = std::move(drive);
+  m_driveRoot.reset();
+  m_driveFilesystemInfo.reset();
+  m_filesystemQuery.cancel();
+  if (m_driveFacts && targets.size() == 1) {
+    m_driveRoot = targets.front().location();
   }
   const bool editable = !targets.empty() && targets.size() <= 4096;
   const bool multiple = targets.size() > 1;
@@ -728,6 +748,9 @@ void PropertiesController::show(const std::vector<luciole::DirectoryEntry>& targ
         }
       });
     }
+    if (m_driveFacts && m_driveRoot) {
+      queryDriveFilesystem(*m_driveRoot);
+    }
     // Start on the tabs rather than the header's close button.
     if (editable) {
       m_page.popupDispatcher().setFocus(m_page.popupDispatcher().firstTabFocusUnder(tabs));
@@ -782,10 +805,89 @@ void PropertiesController::show(const std::vector<luciole::DirectoryEntry>& targ
   }
 }
 
+std::string PropertiesController::driveFreeSpace() const {
+  if (!m_driveFilesystemInfo) {
+    return "Calculating…";
+  }
+  const auto size = m_driveFilesystemInfo->size;
+  if (size == 0) {
+    return "Unknown";
+  }
+  const auto used = std::min(m_driveFilesystemInfo->free <= size ? size - m_driveFilesystemInfo->free : size, size);
+  const auto free = size - used;
+  const luciole::GString freeText(g_format_size_full(free, G_FORMAT_SIZE_IEC_UNITS));
+  const luciole::GString sizeText(g_format_size_full(size, G_FORMAT_SIZE_IEC_UNITS));
+  const auto percent = static_cast<int>(used * 100 / size);
+  return std::format(
+      "{} free of {} ({}% used)", freeText ? freeText.get() : "?", sizeText ? sizeText.get() : "?", percent
+  );
+}
+
+void PropertiesController::queryDriveFilesystem(const luciole::Location& root) {
+  struct Request {
+    PropertiesController* self;
+    luciole::CancelToken token;
+    luciole::Location root;
+    std::uint64_t serial;
+  };
+  m_filesystemQuery = luciole::CancelToken{};
+  const auto serial = ++m_filesystemSerial;
+  g_file_query_filesystem_info_async(
+      luciole::gioFile(root).get(),
+      G_FILE_ATTRIBUTE_FILESYSTEM_SIZE "," G_FILE_ATTRIBUTE_FILESYSTEM_FREE "," G_FILE_ATTRIBUTE_FILESYSTEM_TYPE,
+      G_PRIORITY_DEFAULT, luciole::gioCancellable(m_filesystemQuery),
+      [](GObject* source, GAsyncResult* result, gpointer data) {
+        const std::unique_ptr<Request> request(static_cast<Request*>(data));
+        GError* rawError = nullptr;
+        const luciole::GioPtr<GFileInfo> info(
+            g_file_query_filesystem_info_finish(G_FILE(source), result, &rawError)
+        );
+        const luciole::GErrorPtr error(rawError);
+        auto* self = request->self;
+        if (request->token.cancelled() || self->m_filesystemSerial != request->serial
+            || !self->m_driveFacts || self->m_driveRoot != request->root
+            || self->m_page.popupSurface() == nullptr) {
+          return;
+        }
+        DriveFilesystemInfo filled;
+        if (info) {
+          if (const char* type = luciole::infoString(info.get(), G_FILE_ATTRIBUTE_FILESYSTEM_TYPE)) {
+            filled.type = type;
+          }
+          if (const auto size = luciole::infoUint64(info.get(), G_FILE_ATTRIBUTE_FILESYSTEM_SIZE)) {
+            filled.size = *size;
+          }
+          if (const auto free = luciole::infoUint64(info.get(), G_FILE_ATTRIBUTE_FILESYSTEM_FREE)) {
+            filled.free = std::min(*free, filled.size);
+          }
+        }
+        self->m_driveFilesystemInfo = std::move(filled);
+        const auto replace = [&](std::string label, std::string value) {
+          const auto found = std::ranges::find(self->m_basicFields, label, &luciole::MetadataField::label);
+          if (found != self->m_basicFields.end()) {
+            found->value = std::move(value);
+          }
+        };
+        const std::string filesystem = !self->m_driveFilesystemInfo->type.empty()
+            ? self->m_driveFilesystemInfo->type
+            : self->m_driveFacts->filesystem;
+        replace("File system", filesystem.empty() ? "Unknown" : filesystem);
+        replace("Free space", self->driveFreeSpace());
+        self->m_metadataDirty = true;
+        self->m_page.requestSync();
+      },
+      new Request{this, m_filesystemQuery, root, serial}
+  );
+}
+
 void PropertiesController::close() {
   m_metadata.clear();
   m_selectionMetadata.clear();
   m_iconQuery.cancel();
+  m_filesystemQuery.cancel();
+  m_driveFacts.reset();
+  m_driveRoot.reset();
+  m_driveFilesystemInfo.reset();
   m_identityIcon = nullptr;
   m_multiple = false;
   m_metadataView = nullptr;

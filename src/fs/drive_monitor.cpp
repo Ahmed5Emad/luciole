@@ -84,6 +84,8 @@ struct luciole::DriveMonitor::State : std::enable_shared_from_this<State> {
         {.key = "root",
          .label = "File System",
          .glyph = "database",
+         .device = {},
+         .filesystem = {},
          .root = Location::fromPath("/"),
          .removal = luciole::DriveRemoval::None,
          .usage = std::nullopt}
@@ -97,6 +99,10 @@ struct luciole::DriveMonitor::State : std::enable_shared_from_this<State> {
       drive.key = "volume:" + identifier(handle.volume.get());
       const GString name(g_volume_get_name(handle.volume.get()));
       drive.label = name ? name.get() : "Volume";
+      const GString unixDevice(g_volume_get_identifier(handle.volume.get(), G_VOLUME_IDENTIFIER_KIND_UNIX_DEVICE));
+      if (unixDevice) {
+        drive.device = unixDevice.get();
+      }
       if (!mount) {
         handle.mount.reset(g_volume_get_mount(handle.volume.get()));
         mount = handle.mount.get();
@@ -154,6 +160,8 @@ struct luciole::DriveMonitor::State : std::enable_shared_from_this<State> {
       Drive drive;
       drive.key = "disk:" + partition.device;
       drive.label = std::move(partition.name);
+      drive.device = partition.device;
+      drive.filesystem = partition.fstype;
       drive.glyph = luciole::diskRemovable(partition.device) ? "device-usb" : "database";
       drive.root = luciole::Location::fromPath(partition.mountpoint);
       Handle handle;

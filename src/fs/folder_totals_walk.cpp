@@ -87,6 +87,7 @@ namespace {
           if (!m_seenRoots.insert(identity).second) {
             continue;
           }
+          m_rootDev = value.st_dev;
           validateRoot(root, value);
           if (S_ISDIR(value.st_mode)) {
             if (!m_directories.emplace(DevIno{value.st_dev, value.st_ino}).second) {
@@ -248,6 +249,13 @@ namespace {
           validateRoot(*found->second, value);
         }
         if (S_ISDIR(value.st_mode)) {
+          if (value.st_dev != m_rootDev) {
+            // Another filesystem mounted inside the tree (a drive, a phone, a
+            // container layer): count the mountpoint, never descend. Like du -x,
+            // so a stray mount can't blow up the total.
+            ++m_result.folders;
+            continue;
+          }
           if (!m_directories.emplace(DevIno{value.st_dev, value.st_ino}).second) {
             ++m_result.unavailable; // Directory alias/cycle: no duplicate subtree totals.
             continue;
@@ -283,6 +291,8 @@ namespace {
     std::unordered_set<DevIno, DevInoHash> m_directories;
     std::unordered_map<DevIno, const luciole::DirectoryEntry*, DevInoHash> m_selected;
     std::unordered_set<DevIno, DevInoHash> m_seenRoots;
+    // Device of the walked root: entries on other filesystems are mountpoints and never descended into.
+    dev_t m_rootDev = 0;
   };
 } // namespace
 
