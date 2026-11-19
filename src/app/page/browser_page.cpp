@@ -1502,10 +1502,6 @@ void BrowserPage::runAction(
        [](BrowserPage& page, const Call& call) { page.m_trashController.deleteItems(call.targets); }},
       {Action::Properties,
        [](BrowserPage& page, const Call& call) { page.m_propertiesController.show(call.targets); }},
-      {Action::ChangeFolderIcon,
-       [](BrowserPage& page, const Call& call) {
-         page.m_folderIconController.open(call.targets.front().location());
-       }},
       {Action::Compress,
        [](BrowserPage& page, const Call& call) { page.m_archiveController.compress(call.targets); }},
       {Action::ExtractHere,

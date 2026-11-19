@@ -60,7 +60,6 @@ namespace luciole {
     Restore,
     DeletePermanently,
     Properties,
-    ChangeFolderIcon,
     Compress,
     ExtractHere,
     ExtractTo,

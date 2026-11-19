@@ -234,18 +234,6 @@ namespace {
     );
   }
   State containing(const C&, const R& r) { return require(single(r), "Select exactly one item."); }
-  State folderIcon(const C& c, const R& r) {
-    if (!single(r)) {
-      return unavailable("Select exactly one folder.");
-    }
-    if (!all(c, r, [](const DirectoryEntry& entry) {
-          return entry.type == FileType::Directory && !entry.symlink
-              && entry.location().nativePath().has_value() && !entry.location().isTrash();
-        })) {
-      return unavailable("Select one native folder outside Trash.");
-    }
-    return {};
-  }
   State originalLocation(const C& c, const R& r) {
     if (!single(r)) {
       return unavailable("Select exactly one item.");
@@ -514,11 +502,6 @@ namespace {
          }), "Select deletable native items outside Trash.");
        }},
       {.action = A::Properties, .label = "Properties", .shortcut = "Alt+Return", .scope = S::Targets},
-      {.action = A::ChangeFolderIcon,
-       .label = "Change folder icon…",
-       .shortcut = "",
-       .scope = S::Targets,
-       .rule = folderIcon},
       {.action = A::Compress,
        .label = "Compress…",
        .shortcut = "",
@@ -714,7 +697,6 @@ bool luciole::chooserAction(BrowserAction action) {
   case A::Restore:
   case A::DeletePermanently:
   case A::Properties:
-  case A::ChangeFolderIcon:
   case A::Compress:
   case A::ExtractHere:
   case A::ExtractTo:

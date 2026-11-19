@@ -227,10 +227,6 @@ std::vector<ContextMenuControlEntry> MenuController::itemMenuEntries(const lucio
     add(action);
   }
   addSeparator(entries);
-  if (one && single != nullptr && single->type == luciole::FileType::Directory && !single->symlink
-      && singleLocation->nativePath().has_value() && !trash) {
-    add(Action::ChangeFolderIcon);
-  }
   add(Action::Properties);
   return entries;
 }
@@ -389,7 +385,7 @@ void MenuController::openPlaceMenu(const luciole::Bookmark& bookmark, float x, f
     if (!bookmark.location.isTrash() && bookmark.location != luciole::Location::network()) {
       entries.push_back({.id = 2, .label = "Unpin", .enabled = m_pins.editable()});
       entries.push_back({.id = 6, .label = "Rename place…", .enabled = m_pins.editable()});
-      entries.push_back({.id = 8, .label = "Change icon…", .enabled = m_pins.editable()});
+      entries.push_back({.id = 8, .label = "Change icon", .enabled = m_pins.editable()});
     }
     entries.push_back({.id = 3, .label = "Move up", .enabled = m_pins.editable() && adjacent(true).has_value()});
     entries.push_back({.id = 4, .label = "Move down", .enabled = m_pins.editable() && adjacent(false).has_value()});

@@ -101,7 +101,7 @@ namespace {
              .visible = onChangeIcon != nullptr,
              .participatesInLayout = onChangeIcon != nullptr},
             ui::button({
-                .text = "Change icon…",
+                .text = "Change icon",
                 .variant = ButtonVariant::Ghost,
                 .onClick = [onChangeIcon] {
                   if (onChangeIcon) {
