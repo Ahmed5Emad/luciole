@@ -822,3 +822,55 @@ std::string IconResolver::findIcon(const std::string& name, int targetSize) cons
 
   return {};
 }
+
+std::vector<std::string> IconResolver::listThemeIcons() {
+  IconResolver resolver;
+  resolver.ensureFresh();
+  const auto plan = resolver.m_plan;
+  if (!plan) {
+    return {};
+  }
+  std::vector<std::string> dirs;
+  dirs.reserve(plan->searchDirs.size() + plan->baseDirs.size() + plan->pixmapDirs.size());
+  for (const auto& dir : plan->searchDirs) {
+    if (dir.exists) {
+      dirs.push_back(dir.path);
+    }
+  }
+  // Base and pixmap dirs carry no trailing slash in the plan; findIcon formats them with one.
+  for (const auto& dir : plan->baseDirs) {
+    dirs.push_back(dir + '/');
+  }
+  for (const auto& dir : plan->pixmapDirs) {
+    dirs.push_back(dir + '/');
+  }
+  std::unordered_set<std::string> seen;
+  std::vector<std::string> names;
+  std::error_code ec;
+  for (const auto& dir : dirs) {
+    fs::directory_iterator items(dir, fs::directory_options::skip_permission_denied, ec);
+    if (ec) {
+      ec.clear();
+      continue;
+    }
+    for (const auto& item : items) {
+      if (!item.is_regular_file(ec)) {
+        ec.clear();
+        continue;
+      }
+      const auto filename = item.path().filename().string();
+      for (const char* ext : {".svg", ".png"}) {
+        const std::string_view suffix(ext);
+        if (filename.size() > suffix.size() && filename.ends_with(suffix)) {
+          const std::string stem = filename.substr(0, filename.size() - suffix.size());
+          if (!stem.empty() && seen.emplace(stem).second) {
+            names.push_back(stem);
+          }
+          break;
+        }
+      }
+    }
+  }
+  std::ranges::sort(names);
+  return names;
+}

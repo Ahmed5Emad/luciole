@@ -1,6 +1,7 @@
 #include "fs/directory_session.h"
 
 #include "fs/background_job.h"
+#include "fs/folder_icon.h"
 #include "fs/gio_interop.h"
 #include "fs/heap_trim.h"
 #include "fs/native_listing.h"
@@ -1147,7 +1148,12 @@ struct luciole::DirectorySession::State : std::enable_shared_from_this<State> {
   void enumerate() {
     std::string attributes = kAttributes;
     if (!scan->local) {
-      attributes.append(",").append(kIconAttribute).append(",").append(G_FILE_ATTRIBUTE_STANDARD_TARGET_URI);
+      attributes.append(",")
+          .append(kIconAttribute)
+          .append(",")
+          .append(luciole::kFolderCustomIconAttribute)
+          .append(",")
+          .append(G_FILE_ATTRIBUTE_STANDARD_TARGET_URI);
     }
     if (scan->trash) {
       attributes.append(",").append(kTrashAttributes);

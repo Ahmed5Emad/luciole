@@ -51,6 +51,10 @@ public:
   static std::shared_ptr<const IconThemeWatchPaths> themeWatchPaths();
   static std::uint64_t themeGeneration();
   static std::string activeThemeName();
+  // Every icon name the active theme chain (plus hicolor/Adwaita fallbacks)
+  // can resolve: stems of the .svg/.png files in the plan's search, base and
+  // pixmap dirs. Sorted, unique. Blocking (walks the theme dirs): worker only.
+  static std::vector<std::string> listThemeIcons();
   // The active theme chain's roots when its index.theme sets FollowsColorScheme (KDE), else empty.
   static std::vector<std::string> colorSchemeThemeRoots();
   // Icon lookups performed so far in this process.

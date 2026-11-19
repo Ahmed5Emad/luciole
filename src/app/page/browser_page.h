@@ -11,6 +11,7 @@
 #include "app/page/dialog_dropdown.h"
 #include "app/page/drag_drop_controller.h"
 #include "app/page/file_keyboard_controller.h"
+#include "app/page/folder_icon_controller.h"
 #include "app/page/location_bar_controller.h"
 #include "app/page/menu_controller.h"
 #include "app/page/mount_controller.h"
@@ -70,6 +71,7 @@
 #include <array>
 #include <chrono>
 #include <cstdlib>
+#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -392,7 +394,11 @@ private:
   DialogDropdown m_dialogDropdown{*this, m_connection, m_renderer};
   TrashController m_trashController{*this};
   RenameController m_renameController{*this, m_pins};
-  PropertiesController m_propertiesController{*this, m_icons};
+  FolderIconController m_folderIconController{*this, m_icons};
+  PropertiesController m_propertiesController{
+      *this, m_icons, [this](const luciole::Location& folder, std::function<void()> onCancel) {
+        m_folderIconController.open(folder, std::move(onCancel));
+      }};
   BatchRenameController m_batchRename{*this};
   luciole::TemplateCatalog m_templates;
   SubmenuController m_submenus{*this, m_connection, m_renderer, m_animations};

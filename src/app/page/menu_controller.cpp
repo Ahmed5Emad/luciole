@@ -227,6 +227,10 @@ std::vector<ContextMenuControlEntry> MenuController::itemMenuEntries(const lucio
     add(action);
   }
   addSeparator(entries);
+  if (one && single != nullptr && single->type == luciole::FileType::Directory && !single->symlink
+      && singleLocation->nativePath().has_value() && !trash) {
+    add(Action::ChangeFolderIcon);
+  }
   add(Action::Properties);
   return entries;
 }

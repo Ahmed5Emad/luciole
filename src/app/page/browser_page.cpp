@@ -145,6 +145,8 @@ BrowserPage::BrowserPage(
     m_surface->requestUpdate();
   });
   m_browser.setFileActivatedCallback([this](const luciole::Location& location) { m_launcher.open(location); });
+  m_folderIconController.setOnChanged(
+      [this](const luciole::Location& folder) { m_propertiesController.refreshFolderIcon(folder); });
   m_miller.defaultWidth = settings.millerColumnWidth;
   m_miller.setChangedCallback([this] {
     m_browserDirty = true;
@@ -1109,6 +1111,9 @@ void BrowserPage::keyboard(const KeyboardEvent& event) {
     if (m_dialogDropdown.key(event)) {
       return;
     }
+    if (m_folderIconController.escapeKey(event)) {
+      return;
+    }
     if (m_settingsController.key(event)) {
       return;
     }
@@ -1497,6 +1502,10 @@ void BrowserPage::runAction(
        [](BrowserPage& page, const Call& call) { page.m_trashController.deleteItems(call.targets); }},
       {Action::Properties,
        [](BrowserPage& page, const Call& call) { page.m_propertiesController.show(call.targets); }},
+      {Action::ChangeFolderIcon,
+       [](BrowserPage& page, const Call& call) {
+         page.m_folderIconController.open(call.targets.front().location());
+       }},
       {Action::Compress,
        [](BrowserPage& page, const Call& call) { page.m_archiveController.compress(call.targets); }},
       {Action::ExtractHere,

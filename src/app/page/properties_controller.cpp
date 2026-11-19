@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <format>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -49,7 +50,7 @@ namespace {
   // Names the targets above the tabs, so every tab shows what it applies to; `out` receives the icon.
   std::unique_ptr<Flex> identityRow(
       const std::vector<luciole::DirectoryEntry>& targets, luciole::FileIconCache& icons, float width,
-      luciole::FileIcon** out
+      luciole::FileIcon** out, std::function<void()> onChangeIcon = {}
   ) {
     const auto isFolder = [](const luciole::DirectoryEntry& entry) {
       return entry.type == luciole::FileType::Directory;
@@ -94,6 +95,20 @@ namespace {
                  .fontSize = Style::fontSizeCaption,
                  .color = colorSpecFromRole(ColorRole::OnSurfaceVariant)}
             )
+        ),
+        ui::column(
+            {.align = FlexAlign::End,
+             .visible = onChangeIcon != nullptr,
+             .participatesInLayout = onChangeIcon != nullptr},
+            ui::button({
+                .text = "Change icon…",
+                .variant = ButtonVariant::Ghost,
+                .onClick = [onChangeIcon] {
+                  if (onChangeIcon) {
+                    onChangeIcon();
+                  }
+                },
+            })
         )
     );
   }
@@ -116,8 +131,11 @@ void PropertiesController::showDetails(bool shown) {
   m_page.popupSurface()->requestLayout();
 }
 
-PropertiesController::PropertiesController(PageContext& page, luciole::FileIconCache& icons)
-    : m_page(page), m_icons(icons) {
+PropertiesController::PropertiesController(
+    PageContext& page, luciole::FileIconCache& icons,
+    std::function<void(const luciole::Location&, std::function<void()>)> changeFolderIcon
+)
+    : m_page(page), m_icons(icons), m_changeFolderIcon(std::move(changeFolderIcon)) {
   m_selectionMetadata.setChangedCallback([this] {
     m_metadataDirty = true;
     m_page.requestSync();
@@ -612,10 +630,28 @@ void PropertiesController::show(const std::vector<luciole::DirectoryEntry>& targ
     m_page.popupSurface()->requestLayout();
   };
   luciole::FileIcon* identity = nullptr;
+  std::function<void()> changeIcon;
+  std::optional<luciole::Location> identityLocation;
+  m_lastTargets = targets;
+  if (!multiple && targets.size() == 1 && m_changeFolderIcon) {
+    const auto& entry = targets.front();
+    const auto location = entry.location();
+    if (entry.type == luciole::FileType::Directory && !entry.symlink
+        && location.nativePath().has_value() && !location.isTrash()) {
+      changeIcon = [this, location] {
+        m_changeFolderIcon(location, [this] {
+          if (!m_lastTargets.empty()) {
+            show(m_lastTargets);
+          }
+        });
+      };
+      identityLocation = location;
+    }
+  }
   auto root = ui::column(
       {.align = FlexAlign::Stretch},
       luciole::dialogHeader("Properties", "file-info", [this] { m_page.dismissPopup(); }),
-      identityRow(targets, m_icons, width, &identity),
+      identityRow(targets, m_icons, width, &identity, std::move(changeIcon)),
       ui::row(
           {.justify = FlexJustify::Center, .visible = editable, .participatesInLayout = editable},
           ui::segmented(
@@ -718,6 +754,7 @@ void PropertiesController::show(const std::vector<luciole::DirectoryEntry>& targ
   if (m_page.popupSurface()) {
     m_page.activePopup().bind(ActivePopup::Kind::Properties, [this] { close(); });
     m_identityIcon = identity;
+    m_identityLocation = std::move(identityLocation);
     // Entries without an icon, such as Places rows, get it from GIO.
     if (!multiple && !targets.front().icon) {
       m_iconQuery = luciole::CancelToken{};
@@ -787,6 +824,7 @@ void PropertiesController::close() {
   m_selectionMetadata.clear();
   m_iconQuery.cancel();
   m_identityIcon = nullptr;
+  m_identityLocation.reset();
   m_multiple = false;
   m_metadataView = nullptr;
   m_folderTotals = nullptr;
@@ -810,4 +848,20 @@ void PropertiesController::close() {
   m_permissionSave = nullptr;
   m_permissionScroll = nullptr;
   m_page.focusFileList();
+}
+
+void PropertiesController::refreshFolderIcon(const luciole::Location& folder) {
+  if (m_identityIcon == nullptr || !m_identityLocation || *m_identityLocation != folder
+      || m_page.popupSurface() == nullptr) {
+    return;
+  }
+  // queryFileIcon carries the custom-icon override, so this rebinds the new artwork.
+  m_iconQuery = luciole::CancelToken{};
+  luciole::queryFileIcon(folder, m_iconQuery, [this, identity = m_identityIcon, folder](auto reply) {
+    if (reply && identity == m_identityIcon && m_identityLocation && *m_identityLocation == folder
+        && m_page.popupSurface() != nullptr) {
+      identity->bind(*reply, colorSpecFromRole(ColorRole::OnSurface));
+      m_page.popupSurface()->requestLayout();
+    }
+  });
 }

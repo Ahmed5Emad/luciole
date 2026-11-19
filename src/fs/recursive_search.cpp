@@ -11,7 +11,7 @@
 namespace {
   constexpr const char* kAttributes =
       "standard::name,standard::display-name,standard::type,standard::is-hidden,standard::is-symlink,"
-      "standard::icon,standard::size,time::modified,etag::value,id::file,id::filesystem,"
+      "standard::icon,metadata::custom-icon,standard::size,time::modified,etag::value,id::file,id::filesystem,"
       "time::access,time::created,owner::user,owner::group,unix::mode,"
       "access::can-read,access::can-write,access::can-execute,access::can-rename,access::can-trash,access::can-delete,"
       "trash::orig-path,trash::deletion-date,standard::content-type,standard::fast-content-type";
