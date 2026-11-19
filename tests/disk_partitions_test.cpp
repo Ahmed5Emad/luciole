@@ -1,5 +1,4 @@
 #include "fs/disk_partitions.h"
-
 #include "fs/gio_interop.h"
 #include "test_check.h"
 
@@ -14,18 +13,17 @@ namespace {
     fs::create_symlink("/dev/nvme1n1p2", labels / "Home");
     fs::create_symlink("/dev/mapper/vg-data", labels / "Data Disk");
 
-    const std::string mounts =
-        "/dev/nvme1n1p1 / ext4 rw,relatime 0 0\n"
-        "/dev/nvme0n1p4 /mnt/Games ext4 rw,relatime 0 0\n"
-        "/dev/nvme1n1p2 /home ext4 rw,relatime 0 0\n"
-        "/dev/nvme1n1p3 /boot vfat rw,relatime 0 0\n"
-        "/dev/nvme1n1p4 /boot/efi vfat rw,relatime 0 0\n"
-        "tmpfs /dev/shm tmpfs rw,nosuid,nodev 0 0\n"
-        "overlay /run/docker overlay rw 0 0\n"
-        "/dev/sr0 /media/cdrom iso9660 ro 0 0\n"
-        "/dev/mapper/vg-data /mnt/My\\040Data ext4 rw,relatime 0 0\n"
-        "/dev/nvme0n1p4 /mnt/Games ext4 rw,relatime 0 0\n" // Duplicate mountpoint.
-        "proc /proc proc rw 0 0\n";
+    const std::string mounts = "/dev/nvme1n1p1 / ext4 rw,relatime 0 0\n"
+                               "/dev/nvme0n1p4 /mnt/Games ext4 rw,relatime 0 0\n"
+                               "/dev/nvme1n1p2 /home ext4 rw,relatime 0 0\n"
+                               "/dev/nvme1n1p3 /boot vfat rw,relatime 0 0\n"
+                               "/dev/nvme1n1p4 /boot/efi vfat rw,relatime 0 0\n"
+                               "tmpfs /dev/shm tmpfs rw,nosuid,nodev 0 0\n"
+                               "overlay /run/docker overlay rw 0 0\n"
+                               "/dev/sr0 /media/cdrom iso9660 ro 0 0\n"
+                               "/dev/mapper/vg-data /mnt/My\\040Data ext4 rw,relatime 0 0\n"
+                               "/dev/nvme0n1p4 /mnt/Games ext4 rw,relatime 0 0\n" // Duplicate mountpoint.
+                               "proc /proc proc rw 0 0\n";
     const auto partitions = luciole::listMountedPartitions(mounts, labels.native());
     TEST_CHECK(partitions.size() == 4);
 
@@ -43,10 +41,11 @@ namespace {
   void filtering() {
     const auto partitions = luciole::listMountedPartitions(
         "UUID=abc / ext4 rw 0 0\n"
-        "/dev/sda1 / ext4 rw 0 0\n"           // Root never gets a second row.
-        "/dev/sda2 swap swap defaults 0 0\n"  // Not a mountpoint with a filesystem.
+        "/dev/sda1 / ext4 rw 0 0\n"          // Root never gets a second row.
+        "/dev/sda2 swap swap defaults 0 0\n" // Not a mountpoint with a filesystem.
         "tmpfs /tmp tmpfs rw 0 0\n",
-        "/nonexistent-labels");
+        "/nonexistent-labels"
+    );
     TEST_CHECK(partitions.empty());
   }
 

@@ -53,8 +53,7 @@ namespace {
       const auto percent =
           static_cast<int>(std::llround(100.0 * static_cast<double>(used) / static_cast<double>(drive.usage->size)));
       text += std::format(
-          "\n{} free of {} ({}% used)", freeText ? freeText.get() : "?", sizeText ? sizeText.get() : "?",
-          percent
+          "\n{} free of {} ({}% used)", freeText ? freeText.get() : "?", sizeText ? sizeText.get() : "?", percent
       );
     }
     return text;
@@ -310,19 +309,17 @@ void luciole::PlacesSidebar::addDriveRow(const Drive& drive) {
   };
   const auto pointer = std::make_shared<EjectPointer>();
   const auto overEject = [raw, eject](float x) { return eject != nullptr && x >= eject->x() - raw->gap() * 0.5F; };
-  raw->setOnPointerMotion(
-      [this, raw, pointer, overEject, key = drive.key, ejectTooltip = std::string(driveRemovalLabel(drive.removal))](
-          float x, float) {
-        if (const bool over = overEject(x); over != pointer->over) {
-          pointer->over = over;
-          if (over) {
-            raw->setTooltip(ejectTooltip);
-          } else if (const auto* current = m_drives.find(key); current != nullptr) {
-            raw->setTooltip(driveTooltip(*current));
-          }
-        }
+  raw->setOnPointerMotion([this, raw, pointer, overEject, key = drive.key,
+                           ejectTooltip = std::string(driveRemovalLabel(drive.removal))](float x, float) {
+    if (const bool over = overEject(x); over != pointer->over) {
+      pointer->over = over;
+      if (over) {
+        raw->setTooltip(ejectTooltip);
+      } else if (const auto* current = m_drives.find(key); current != nullptr) {
+        raw->setTooltip(driveTooltip(*current));
       }
-  );
+    }
+  });
   raw->setOnLeave([this, raw, pointer, key = drive.key] {
     *pointer = {};
     if (const auto* current = m_drives.find(key); current != nullptr) {

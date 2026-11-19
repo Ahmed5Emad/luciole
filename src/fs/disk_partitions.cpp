@@ -1,16 +1,15 @@
 #include "fs/disk_partitions.h"
 
+#include <algorithm>
+#include <array>
 #include <dirent.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <array>
-#include <algorithm>
 #include <memory>
 #include <ranges>
 #include <string>
 #include <string_view>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace {
   struct DirCloser {
@@ -25,8 +24,8 @@ namespace {
   // filesystems (tmpfs, overlay, squashfs, zfs, ...) never qualify.
   bool realFilesystem(std::string_view fstype) {
     for (const auto* known :
-         {"ext2", "ext3", "ext4", "vfat", "exfat", "ntfs", "ntfs3", "btrfs", "xfs", "f2fs", "hfsplus",
-          "udf", "iso9660"}) {
+         {"ext2", "ext3", "ext4", "vfat", "exfat", "ntfs", "ntfs3", "btrfs", "xfs", "f2fs", "hfsplus", "udf",
+          "iso9660"}) {
       if (fstype == known) {
         return true;
       }
@@ -96,9 +95,7 @@ namespace {
     return {};
   }
 
-  std::string displayName(
-      const std::string& byLabelDir, const std::string& device, const std::string& mountpoint
-  ) {
+  std::string displayName(const std::string& byLabelDir, const std::string& device, const std::string& mountpoint) {
     if (auto label = partitionLabel(byLabelDir, device); !label.empty()) {
       return label;
     }
@@ -122,15 +119,15 @@ namespace {
   }
 } // namespace
 
-std::vector<luciole::DiskPartition> luciole::listMountedPartitions(
-    const std::string& mountsText, const std::string& byLabelDir
-) {
+std::vector<luciole::DiskPartition>
+luciole::listMountedPartitions(const std::string& mountsText, const std::string& byLabelDir) {
   std::vector<DiskPartition> result;
   std::size_t start = 0;
   while (start <= mountsText.size()) {
     const auto end = mountsText.find('\n', start);
-    const std::string_view line(mountsText.data() + start,
-        end == std::string::npos ? mountsText.size() - start : end - start);
+    const std::string_view line(
+        mountsText.data() + start, end == std::string::npos ? mountsText.size() - start : end - start
+    );
     start = end == std::string::npos ? mountsText.size() + 1 : end + 1;
     // device, mountpoint, fstype, options, ... (no literal spaces: escaped).
     std::string_view fields[4];
@@ -150,8 +147,7 @@ std::vector<luciole::DiskPartition> luciole::listMountedPartitions(
     const std::string device = unescape(fields[0]);
     const std::string mountpoint = unescape(fields[1]);
     const std::string fstype(fields[2]);
-    if (!device.starts_with("/dev/") || !realFilesystem(fstype) || mountpoint == "/"
-        || mountpoint.empty()) {
+    if (!device.starts_with("/dev/") || !realFilesystem(fstype) || mountpoint == "/" || mountpoint.empty()) {
       continue;
     }
     // The boot partitions carry no user data; nobody wants them in Drives.

@@ -2,6 +2,7 @@
 
 #include "browser/selection_details.h"
 #include "fs/cancel_token.h"
+#include "fs/file_query.h"
 #include "thumbnails/preview_metadata.h"
 
 #include <cstddef>
@@ -108,13 +109,8 @@ private:
   // in its type and free space.
   std::optional<luciole::DriveFacts> m_driveFacts;
   std::optional<luciole::Location> m_driveRoot;
-  struct DriveFilesystemInfo {
-    std::string type;
-    std::uint64_t size = 0;
-    std::uint64_t free = 0;
-  };
   // Set when the filesystem query answers, even on failure (as all-unknown).
-  std::optional<DriveFilesystemInfo> m_driveFilesystemInfo;
+  std::optional<luciole::FilesystemFacts> m_driveFilesystemInfo;
   std::uint64_t m_filesystemSerial = 0;
   luciole::CancelToken m_filesystemQuery;
   // Location, size and similar entry facts that lead the Details table.

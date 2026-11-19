@@ -9,7 +9,6 @@
 #include "config/settings.h"
 #include "core/ui_phase.h"
 #include "fs/file_query.h"
-#include "fs/gio_interop.h"
 #include "fs/gio_ptr.h"
 #include "operations/permission_service.h"
 #include "platform/desktop_integration.h"
@@ -824,59 +823,32 @@ std::string PropertiesController::driveFreeSpace() const {
 }
 
 void PropertiesController::queryDriveFilesystem(const luciole::Location& root) {
-  struct Request {
-    PropertiesController* self;
-    luciole::CancelToken token;
-    luciole::Location root;
-    std::uint64_t serial;
-  };
   m_filesystemQuery = luciole::CancelToken{};
   const auto serial = ++m_filesystemSerial;
-  g_file_query_filesystem_info_async(
-      luciole::gioFile(root).get(),
-      G_FILE_ATTRIBUTE_FILESYSTEM_SIZE "," G_FILE_ATTRIBUTE_FILESYSTEM_FREE "," G_FILE_ATTRIBUTE_FILESYSTEM_TYPE,
-      G_PRIORITY_DEFAULT, luciole::gioCancellable(m_filesystemQuery),
-      [](GObject* source, GAsyncResult* result, gpointer data) {
-        const std::unique_ptr<Request> request(static_cast<Request*>(data));
-        GError* rawError = nullptr;
-        const luciole::GioPtr<GFileInfo> info(
-            g_file_query_filesystem_info_finish(G_FILE(source), result, &rawError)
-        );
-        const luciole::GErrorPtr error(rawError);
-        auto* self = request->self;
-        if (request->token.cancelled() || self->m_filesystemSerial != request->serial
-            || !self->m_driveFacts || self->m_driveRoot != request->root
-            || self->m_page.popupSurface() == nullptr) {
+  luciole::queryFilesystemFacts(
+      root, m_filesystemQuery, [this, serial, root](std::expected<luciole::FilesystemFacts, luciole::FileError> facts) {
+        if (m_filesystemSerial != serial || !m_driveFacts || m_driveRoot != root || m_page.popupSurface() == nullptr) {
           return;
         }
-        DriveFilesystemInfo filled;
-        if (info) {
-          if (const char* type = luciole::infoString(info.get(), G_FILE_ATTRIBUTE_FILESYSTEM_TYPE)) {
-            filled.type = type;
-          }
-          if (const auto size = luciole::infoUint64(info.get(), G_FILE_ATTRIBUTE_FILESYSTEM_SIZE)) {
-            filled.size = *size;
-          }
-          if (const auto free = luciole::infoUint64(info.get(), G_FILE_ATTRIBUTE_FILESYSTEM_FREE)) {
-            filled.free = std::min(*free, filled.size);
-          }
+        m_driveFilesystemInfo = luciole::FilesystemFacts{};
+        if (facts) {
+          m_driveFilesystemInfo->type = facts->type;
+          m_driveFilesystemInfo->size = facts->size;
+          m_driveFilesystemInfo->free = std::min(facts->free, facts->size);
         }
-        self->m_driveFilesystemInfo = std::move(filled);
         const auto replace = [&](std::string label, std::string value) {
-          const auto found = std::ranges::find(self->m_basicFields, label, &luciole::MetadataField::label);
-          if (found != self->m_basicFields.end()) {
+          const auto found = std::ranges::find(m_basicFields, label, &luciole::MetadataField::label);
+          if (found != m_basicFields.end()) {
             found->value = std::move(value);
           }
         };
-        const std::string filesystem = !self->m_driveFilesystemInfo->type.empty()
-            ? self->m_driveFilesystemInfo->type
-            : self->m_driveFacts->filesystem;
+        const std::string filesystem =
+            !m_driveFilesystemInfo->type.empty() ? m_driveFilesystemInfo->type : m_driveFacts->filesystem;
         replace("File system", filesystem.empty() ? "Unknown" : filesystem);
-        replace("Free space", self->driveFreeSpace());
-        self->m_metadataDirty = true;
-        self->m_page.requestSync();
-      },
-      new Request{this, m_filesystemQuery, root, serial}
+        replace("Free space", driveFreeSpace());
+        m_metadataDirty = true;
+        m_page.requestSync();
+      }
   );
 }
 

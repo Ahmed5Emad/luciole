@@ -18,9 +18,7 @@ namespace luciole {
   // Parses mounts-file text (the /proc/self/mounts format: device, mountpoint,
   // fstype, options, ...), keeping real disk partitions except the root
   // filesystem. Labels resolve through `byLabelDir` (/dev/disk/by-label).
-  std::vector<DiskPartition> listMountedPartitions(
-      const std::string& mountsText, const std::string& byLabelDir
-  );
+  std::vector<DiskPartition> listMountedPartitions(const std::string& mountsText, const std::string& byLabelDir);
 
   // Whether the block device backs removable media, via sysfs. Best effort:
   // false when the sysfs entry is missing or unreadable.

@@ -152,8 +152,7 @@ struct luciole::DriveMonitor::State : std::enable_shared_from_this<State> {
         }
       }
     }
-    for (auto& partition :
-         luciole::listMountedPartitions(readMounts(), "/dev/disk/by-label")) {
+    for (auto& partition : luciole::listMountedPartitions(readMounts(), "/dev/disk/by-label")) {
       if (!covered.insert(normalizedPath(partition.mountpoint)).second) {
         continue;
       }
@@ -167,8 +166,7 @@ struct luciole::DriveMonitor::State : std::enable_shared_from_this<State> {
       Handle handle;
       if (drive.root) {
         GError* rawError = nullptr;
-        handle.mount.reset(g_file_find_enclosing_mount(
-            gioFile(*drive.root).get(), nullptr, &rawError));
+        handle.mount.reset(g_file_find_enclosing_mount(gioFile(*drive.root).get(), nullptr, &rawError));
         if (rawError != nullptr) {
           g_clear_error(&rawError);
         }
