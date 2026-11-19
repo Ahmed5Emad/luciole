@@ -145,8 +145,9 @@ BrowserPage::BrowserPage(
     m_surface->requestUpdate();
   });
   m_browser.setFileActivatedCallback([this](const luciole::Location& location) { m_launcher.open(location); });
-  m_folderIconController.setOnChanged(
-      [this](const luciole::Location& folder) { m_propertiesController.refreshFolderIcon(folder); });
+  m_folderIconController.setOnChanged([this](const luciole::Location& folder) {
+    m_propertiesController.refreshFolderIcon(folder);
+  });
   m_miller.defaultWidth = settings.millerColumnWidth;
   m_miller.setChangedCallback([this] {
     m_browserDirty = true;

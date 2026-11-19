@@ -398,7 +398,8 @@ private:
   PropertiesController m_propertiesController{
       *this, m_icons, [this](const luciole::Location& folder, std::function<void()> onCancel) {
         m_folderIconController.open(folder, std::move(onCancel));
-      }};
+      }
+  };
   BatchRenameController m_batchRename{*this};
   luciole::TemplateCatalog m_templates;
   SubmenuController m_submenus{*this, m_connection, m_renderer, m_animations};
