@@ -121,8 +121,8 @@ void FolderTotalsView::sync(float width) {
   m_stop->setEnabled(!value.cancelRequested);
 }
 
-void FolderTotalsView::setFreeSpace(std::string text) {
+void FolderTotalsView::setFreeSpace(const std::string& text) {
   if (m_freeSpace != nullptr) {
-    m_freeSpace->setText(std::move(text));
+    m_freeSpace->setText(text);
   }
 }

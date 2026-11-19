@@ -836,7 +836,7 @@ void PropertiesController::queryDriveFilesystem(const luciole::Location& root) {
           m_driveFilesystemInfo->size = facts->size;
           m_driveFilesystemInfo->free = std::min(facts->free, facts->size);
         }
-        const auto replace = [&](std::string label, std::string value) {
+        const auto replace = [&](const std::string& label, std::string value) {
           const auto found = std::ranges::find(m_basicFields, label, &luciole::MetadataField::label);
           if (found != m_basicFields.end()) {
             found->value = std::move(value);

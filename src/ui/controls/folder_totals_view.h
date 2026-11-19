@@ -12,7 +12,7 @@ public:
   FolderTotalsView(std::span<const luciole::DirectoryEntry> targets, std::function<void()> requestSync);
   void sync(float width);
   // Filesystem free space shown above the contents, for drive dialogs. Empty hides it.
-  void setFreeSpace(std::string text);
+  void setFreeSpace(const std::string& text);
 
 private:
   luciole::FolderTotalsService m_service;
