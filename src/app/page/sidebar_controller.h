@@ -29,6 +29,7 @@ class DragDropController;
 class InputArea;
 class MenuController;
 class PageContext;
+class PropertiesController;
 class RenameController;
 class Renderer;
 
@@ -41,7 +42,7 @@ public:
   SidebarController(
       PageContext& page, luciole::PinService& pins, luciole::DriveMonitor& drives,
       luciole::ViewPreferenceWriter& preferences, AnimationManager& animations, MenuController& menus,
-      RenameController& renamer, DragDropController& drags
+      RenameController& renamer, PropertiesController& properties, DragDropController& drags
   );
 
   // Takes the sidebar settings of a new page.
@@ -117,6 +118,7 @@ private:
   AnimationManager& m_animations;
   MenuController& m_menus;
   RenameController& m_renamer;
+  PropertiesController& m_properties;
   DragDropController& m_drags;
   luciole::PlacesSidebar* m_places = nullptr;
   bool m_placesDirty = true;

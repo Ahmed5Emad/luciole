@@ -35,7 +35,8 @@ namespace luciole {
   };
 
   // The root filesystem ("/" as File System), then each mountable volume or mount reported by GIO's volume
-  // monitor (removable media, extra partitions, network mounts), as Nautilus lists them under "Other Locations".
+  // monitor (removable media, extra partitions, network mounts), as Nautilus lists them under "Other Locations",
+  // plus mounted disk partitions GIO hides (internal and system mounts), each with its filesystem label.
   struct Drive {
     // Stable while the device stays attached; identifies the drive across change notifications.
     std::string key;
