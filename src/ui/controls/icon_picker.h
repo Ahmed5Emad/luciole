@@ -1,5 +1,6 @@
 #pragma once
 
+#include "system/icon_resolver.h"
 #include "ui/controls/flex.h"
 
 #include <functional>
@@ -11,9 +12,10 @@
 #include <vector>
 
 namespace luciole {
-  class FileIcon;
   class FileIconCache;
 } // namespace luciole
+
+class TooltipPresenter;
 
 class Button;
 class InputArea;
@@ -32,7 +34,9 @@ struct IconPickerResult {
 // real theme icons through the shared FileIconCache.
 class IconPicker : public Flex {
 public:
-  explicit IconPicker(luciole::FileIconCache& icons, std::vector<std::string> names);
+  explicit IconPicker(
+      luciole::FileIconCache& icons, std::vector<ThemedIcon> names, std::function<void()> requestTooltipUpdate
+  );
   ~IconPicker() override;
 
   void setTitle(std::string_view title);
@@ -48,6 +52,8 @@ public:
 
   void setEnabled(bool enabled);
   void showError(std::string_view message);
+  void tooltipPointer(float x, float y, bool arm);
+  void syncTooltip(Renderer& renderer);
 
 protected:
   void doLayout(Renderer& renderer) override;
@@ -73,6 +79,9 @@ private:
 
   Select* m_scopeSelect = nullptr;
   std::vector<std::string> m_scopeOptions;
+  TooltipPresenter* m_tooltip = nullptr;
+  float m_pointerX = 0.0F;
+  float m_pointerY = 0.0F;
   std::optional<std::string> m_pendingInitialIcon;
   bool m_pendingInitialApplied = false;
   bool m_enabled = true;

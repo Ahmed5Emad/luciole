@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fs/location.h"
+#include "system/icon_resolver.h"
 
 #include <cstdint>
 #include <functional>
@@ -15,15 +16,17 @@ namespace luciole {
 
 class IconPicker;
 class PageContext;
+class Renderer;
 struct KeyboardEvent;
 
-// "Change folder icon…" for a single folder: an icon-theme picker whose choice
-// is stored in GVFS metadata (Nautilus-compatible), falling back to the
-// folder's .directory file (Dolphin-compatible) when metadata is unavailable.
+// "Change icon" for a single folder: an icon-theme picker whose choice is
+// stored as metadata::custom-icon-name (GNOME Files) plus the folder's
+// .directory file (Dolphin), or as a file:// URI in metadata::custom-icon
+// for image files.
 class FolderIconController {
 public:
   struct LoadResult {
-    std::vector<std::string> names;
+    std::vector<ThemedIcon> names;
     std::optional<std::string> current;
   };
   struct WriteResult {
@@ -43,6 +46,10 @@ public:
   // Keyboard hook in BrowserPage::keyboard(): Escape cancels the picker through
   // the same path as its Cancel button.
   bool escapeKey(const KeyboardEvent& event);
+  // Pointer hook in BrowserPage for the tile tooltips, mirroring the place
+  // icon picker.
+  void folderIconPointer(float x, float y, bool hover);
+  void syncFolderIconTooltip(Renderer& renderer);
 
 private:
   void showPicker(LoadResult result, std::uint64_t generation);

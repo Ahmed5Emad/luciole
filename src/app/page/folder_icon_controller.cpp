@@ -12,6 +12,7 @@
 #include "thumbnails/file_icon_cache.h"
 #include "ui/controls/icon_picker.h"
 #include "ui/dialogs/dialog_chrome.h"
+#include "wayland/popup_surface.h"
 #include "wayland/wayland_seat.h"
 
 namespace {
@@ -52,7 +53,11 @@ void FolderIconController::showPicker(LoadResult result, std::uint64_t generatio
   if (!m_target || generation != m_generation) {
     return;
   }
-  auto picker = std::make_unique<IconPicker>(m_icons, std::move(result.names));
+  auto picker = std::make_unique<IconPicker>(m_icons, std::move(result.names), [this] {
+    if (auto* popup = m_page.popupSurface()) {
+      popup->requestUpdate();
+    }
+  });
   picker->setTitle("Choose folder icon");
   picker->setInitialIcon(std::move(result.current));
   auto* control = picker.get();
@@ -159,4 +164,16 @@ bool FolderIconController::escapeKey(const KeyboardEvent& event) {
   }
   cancelPicker();
   return true;
+}
+
+void FolderIconController::folderIconPointer(float x, float y, bool hover) {
+  if (m_picker != nullptr) {
+    m_picker->tooltipPointer(x, y, hover);
+  }
+}
+
+void FolderIconController::syncFolderIconTooltip(Renderer& renderer) {
+  if (m_picker != nullptr) {
+    m_picker->syncTooltip(renderer);
+  }
 }

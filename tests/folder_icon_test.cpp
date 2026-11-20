@@ -207,12 +207,13 @@ namespace {
 
   void themeListingIsSane() {
     const auto names = IconResolver::listThemeIcons();
-    for (const auto& name : names) {
+    for (const auto& icon : names) {
       // Double extensions (foo.png.svg) are legitimate resolvable names.
-      TEST_CHECK(!name.empty() && !name.contains('/'));
+      TEST_CHECK(!icon.name.empty() && !icon.name.contains('/'));
+      TEST_CHECK(icon.context.empty() || (!icon.context.contains('/') && !icon.context.contains(' ')));
     }
-    TEST_CHECK(std::ranges::is_sorted(names));
-    TEST_CHECK(std::ranges::adjacent_find(names) == names.end());
+    TEST_CHECK(std::ranges::is_sorted(names, {}, &ThemedIcon::name));
+    TEST_CHECK(std::ranges::adjacent_find(names, {}, &ThemedIcon::name) == names.end());
   }
 } // namespace
 

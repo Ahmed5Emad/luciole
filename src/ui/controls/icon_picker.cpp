@@ -1,9 +1,11 @@
 #include "ui/controls/icon_picker.h"
 
 #include "cursor-shape-v1-client-protocol.h"
+#include "system/icon_resolver.h"
 #include "thumbnails/file_icon_cache.h"
 #include "ui/browser/file_icon.h"
 #include "ui/builders.h"
+#include "ui/controls/tooltip_presenter.h"
 #include "ui/controls/virtual_grid_view.h"
 #include "ui/dialogs/dialog_chrome.h"
 #include "ui/palette.h"
@@ -19,18 +21,34 @@ namespace {
 
 class IconGridAdapter : public VirtualGridAdapter {
 public:
-  IconGridAdapter(luciole::FileIconCache& icons, std::vector<std::string> names)
-      : m_icons(&icons), m_master(std::move(names)) {
+  enum class Scope { All, Folders, Context, Unthemed };
+
+  IconGridAdapter(luciole::FileIconCache& icons, std::vector<ThemedIcon> iconsIn)
+      : m_icons(&icons), m_master(std::move(iconsIn)) {
     // Folder artwork first, then everything else alphabetically.
-    const auto folder = [](const std::string& name) { return name.starts_with("folder"); };
-    std::ranges::stable_sort(m_master, [&](const std::string& a, const std::string& b) {
+    const auto folder = [](const ThemedIcon& icon) { return icon.name.starts_with("folder"); };
+    std::ranges::stable_sort(m_master, [&](const ThemedIcon& a, const ThemedIcon& b) {
       if (folder(a) != folder(b)) {
         return folder(a) > folder(b);
       }
-      return a < b;
+      return a.name < b.name;
     });
     m_visible.reserve(m_master.size());
-    rebuildVisible({}, false);
+    rebuildVisible({}, Scope::All, {});
+  }
+
+  // Scope dropdown entries after "All icons" and "Folders only": one per
+  // theme context present, with "Unthemed" last for icons found only outside
+  // any indexed theme directory.
+  std::vector<std::string> contexts() const {
+    std::vector<std::string> out;
+    for (const auto& icon : m_master) {
+      if (!icon.context.empty() && !std::ranges::contains(out, icon.context)) {
+        out.push_back(icon.context);
+      }
+    }
+    std::ranges::sort(out);
+    return out;
   }
 
   std::size_t itemCount() const override { return m_visible.size(); }
@@ -58,7 +76,7 @@ public:
       tile.setVisible(false);
       return;
     }
-    const std::string& name = m_master[m_visible[index]];
+    const std::string& name = m_master[m_visible[index]].name;
     auto* flex = static_cast<Flex*>(&tile);
     auto* icon = static_cast<luciole::FileIcon*>(flex->userData());
 
@@ -91,18 +109,48 @@ public:
   }
 
   std::string itemTooltip(std::size_t index) const override {
-    return index < m_visible.size() ? m_master[m_visible[index]] : std::string{};
+    return index < m_visible.size() ? m_master[m_visible[index]].name : std::string{};
   }
 
-  void rebuildVisible(std::string_view filter, bool foldersOnly) {
+  // Folders are folder* names, plus the user-* and network-* names that live
+  // in a Places context (other Places entries, like map points of interest,
+  // are app icons, not folder artwork).
+  static bool isFolderIcon(const ThemedIcon& icon) {
+    if (icon.name.starts_with("folder")) {
+      return true;
+    }
+    if (icon.context == "Places" && (icon.name.starts_with("user-") || icon.name.starts_with("network-"))) {
+      return true;
+    }
+    return false;
+  }
+
+  void rebuildVisible(std::string_view filter, Scope scope, std::string_view context) {
     m_visible.clear();
     const std::string needle = StringUtils::toLower(filter);
     const bool filterByName = !needle.empty();
     for (std::size_t i = 0; i < m_master.size(); ++i) {
-      if (foldersOnly && !m_master[i].starts_with("folder")) {
-        continue;
+      const auto& icon = m_master[i];
+      switch (scope) {
+      case Scope::All:
+        break;
+      case Scope::Folders:
+        if (!isFolderIcon(icon)) {
+          continue;
+        }
+        break;
+      case Scope::Context:
+        if (icon.context != context) {
+          continue;
+        }
+        break;
+      case Scope::Unthemed:
+        if (!icon.context.empty()) {
+          continue;
+        }
+        break;
       }
-      if (filterByName && !StringUtils::toLower(m_master[i]).contains(needle)) {
+      if (filterByName && !StringUtils::toLower(icon.name).contains(needle)) {
         continue;
       }
       m_visible.push_back(i);
@@ -111,22 +159,25 @@ public:
 
   std::optional<std::size_t> indexOfName(std::string_view name) const {
     for (std::size_t i = 0; i < m_visible.size(); ++i) {
-      if (m_master[m_visible[i]] == name) {
+      if (m_master[m_visible[i]].name == name) {
         return i;
       }
     }
     return std::nullopt;
   }
 
-  const std::string& entryAt(std::size_t visibleIndex) const { return m_master[m_visible[visibleIndex]]; }
+  const std::string& entryAt(std::size_t visibleIndex) const { return m_master[m_visible[visibleIndex]].name; }
 
 private:
   luciole::FileIconCache* m_icons = nullptr;
-  std::vector<std::string> m_master;
+  std::vector<ThemedIcon> m_master;
   std::vector<std::size_t> m_visible;
 };
 
-IconPicker::IconPicker(luciole::FileIconCache& icons, std::vector<std::string> names) : m_icons(&icons) {
+IconPicker::IconPicker(
+    luciole::FileIconCache& icons, std::vector<ThemedIcon> names, std::function<void()> requestTooltipUpdate
+)
+    : m_icons(&icons) {
   setDirection(FlexDirection::Vertical);
   setAlign(FlexAlign::Stretch);
   luciole::applyDialogStyle(*this);
@@ -145,6 +196,10 @@ IconPicker::IconPicker(luciole::FileIconCache& icons, std::vector<std::string> n
   m_adapter = std::make_unique<IconGridAdapter>(*m_icons, std::move(names));
   m_scopeOptions.emplace_back("All icons");
   m_scopeOptions.emplace_back("Folders only");
+  for (const auto& context : m_adapter->contexts()) {
+    m_scopeOptions.emplace_back(context);
+  }
+  m_scopeOptions.emplace_back("Unthemed");
   addChild(
       ui::row(
           {
@@ -245,6 +300,10 @@ IconPicker::IconPicker(luciole::FileIconCache& icons, std::vector<std::string> n
   );
 
   syncSelection();
+
+  auto tooltip = std::make_unique<TooltipPresenter>(std::move(requestTooltipUpdate));
+  m_tooltip = tooltip.get();
+  addChild(std::move(tooltip));
 }
 
 IconPicker::~IconPicker() {
@@ -298,6 +357,25 @@ void IconPicker::showError(std::string_view message) {
   }
 }
 
+void IconPicker::tooltipPointer(float x, float y, bool arm) {
+  m_pointerX = x;
+  m_pointerY = y;
+  if (m_tooltip == nullptr) {
+    return;
+  }
+  if (arm) {
+    m_tooltip->resume();
+  } else {
+    m_tooltip->dismiss();
+  }
+}
+
+void IconPicker::syncTooltip(Renderer& renderer) {
+  if (m_tooltip != nullptr) {
+    m_tooltip->sync(renderer, *this, m_pointerX, m_pointerY, {width(), height()});
+  }
+}
+
 std::optional<IconPickerResult> IconPicker::currentResult() const {
   if (m_grid == nullptr || m_adapter == nullptr) {
     return std::nullopt;
@@ -335,9 +413,21 @@ void IconPicker::applyFilter(const std::string& filter) {
   if (m_adapter == nullptr || m_grid == nullptr) {
     return;
   }
-  const bool foldersOnly = m_scopeSelect != nullptr && m_scopeSelect->selectedIndex() == 1;
+  // Scope options are All icons, Folders only, one per theme context, then Unthemed.
+  const std::size_t selected = m_scopeSelect != nullptr ? m_scopeSelect->selectedIndex() : 0;
+  const std::size_t options = m_scopeOptions.size();
+  auto scope = IconGridAdapter::Scope::All;
+  std::string_view context;
+  if (selected == 1 && options > 1) {
+    scope = IconGridAdapter::Scope::Folders;
+  } else if (options > 2 && selected == options - 1) {
+    scope = IconGridAdapter::Scope::Unthemed;
+  } else if (selected >= 2 && selected + 1 < options) {
+    scope = IconGridAdapter::Scope::Context;
+    context = m_scopeOptions[selected];
+  }
   const auto previousResult = currentResult();
-  m_adapter->rebuildVisible(filter, foldersOnly);
+  m_adapter->rebuildVisible(filter, scope, context);
   // Drop selection if the previously selected name is no longer visible.
   if (previousResult.has_value()) {
     if (const auto idx = m_adapter->indexOfName(previousResult->name); idx.has_value()) {
