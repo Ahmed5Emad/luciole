@@ -5,7 +5,6 @@
 #include "thumbnails/file_icon_cache.h"
 #include "ui/browser/file_icon.h"
 #include "ui/builders.h"
-#include "ui/controls/tooltip_presenter.h"
 #include "ui/controls/virtual_grid_view.h"
 #include "ui/dialogs/dialog_chrome.h"
 #include "ui/palette.h"
@@ -174,10 +173,7 @@ private:
   std::vector<std::size_t> m_visible;
 };
 
-IconPicker::IconPicker(
-    luciole::FileIconCache& icons, std::vector<ThemedIcon> names, std::function<void()> requestTooltipUpdate
-)
-    : m_icons(&icons) {
+IconPicker::IconPicker(luciole::FileIconCache& icons, std::vector<ThemedIcon> names) : m_icons(&icons) {
   setDirection(FlexDirection::Vertical);
   setAlign(FlexAlign::Stretch);
   luciole::applyDialogStyle(*this);
@@ -300,10 +296,6 @@ IconPicker::IconPicker(
   );
 
   syncSelection();
-
-  auto tooltip = std::make_unique<TooltipPresenter>(std::move(requestTooltipUpdate));
-  m_tooltip = tooltip.get();
-  addChild(std::move(tooltip));
 }
 
 IconPicker::~IconPicker() {
@@ -354,25 +346,6 @@ void IconPicker::showError(std::string_view message) {
   if (m_selectedName != nullptr) {
     m_selectedName->setText(message);
     m_selectedName->setColor(colorSpecFromRole(ColorRole::Error));
-  }
-}
-
-void IconPicker::tooltipPointer(float x, float y, bool arm) {
-  m_pointerX = x;
-  m_pointerY = y;
-  if (m_tooltip == nullptr) {
-    return;
-  }
-  if (arm) {
-    m_tooltip->resume();
-  } else {
-    m_tooltip->dismiss();
-  }
-}
-
-void IconPicker::syncTooltip(Renderer& renderer) {
-  if (m_tooltip != nullptr) {
-    m_tooltip->sync(renderer, *this, m_pointerX, m_pointerY, {width(), height()});
   }
 }
 

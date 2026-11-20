@@ -830,10 +830,6 @@ void BrowserPage::pointer(const PointerEvent& event) {
         x - content->x(), y - content->y(),
         event.type == PointerEvent::Type::Motion || event.type == PointerEvent::Type::Enter
     );
-    m_folderIconController.folderIconPointer(
-        x - content->x(), y - content->y(),
-        event.type == PointerEvent::Type::Motion || event.type == PointerEvent::Type::Enter
-    );
   }
   const bool page = input == &dispatcher();
   if (page
@@ -3046,7 +3042,6 @@ void BrowserPage::openPopup(
     );
     m_batchRename.syncTooltip(m_popupSurface->renderTarget().renderer());
     m_renameController.syncPlaceIconTooltip(m_popupSurface->renderTarget().renderer());
-    m_folderIconController.syncFolderIconTooltip(m_popupSurface->renderTarget().renderer());
   });
   m_popupSurface->setConfigureCallback([this](std::uint32_t, std::uint32_t) {
     if (std::exchange(m_dialogResizePending, false)

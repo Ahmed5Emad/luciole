@@ -46,10 +46,6 @@ public:
   // Keyboard hook in BrowserPage::keyboard(): Escape cancels the picker through
   // the same path as its Cancel button.
   bool escapeKey(const KeyboardEvent& event);
-  // Pointer hook in BrowserPage for the tile tooltips, mirroring the place
-  // icon picker.
-  void folderIconPointer(float x, float y, bool hover);
-  void syncFolderIconTooltip(Renderer& renderer);
 
 private:
   void showPicker(LoadResult result, std::uint64_t generation);
