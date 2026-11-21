@@ -126,6 +126,18 @@ namespace {
       }
       ++m_items;
       if (S_ISDIR(value.st_mode)) {
+        if (depth == 0) {
+          m_rootDev = value.st_dev;
+        } else if (value.st_dev != m_rootDev) {
+          // Another filesystem mounted inside the tree (a drive, a phone, a
+          // container layer): count the mountpoint, never descend. Like du -x,
+          // so a stray mount can't blow up the total.
+          ++m_result.folders;
+          if (m_items % 64 == 0) {
+            m_progress(m_result);
+          }
+          return;
+        }
         if (!m_directories.emplace(value.st_dev, value.st_ino).second) {
           ++m_result.unavailable; // Directory alias/cycle: no duplicate subtree totals.
         } else {
@@ -209,6 +221,7 @@ namespace {
     luciole::FolderTotalsLimits m_limits;
     luciole::FolderTotalsSnapshot m_result;
     std::size_t m_items = 0;
+    dev_t m_rootDev = 0;
     std::map<std::string, const luciole::DirectoryEntry*> m_selected;
     std::set<std::string> m_seenRoots;
     std::set<std::pair<dev_t, ino_t>> m_directories;
