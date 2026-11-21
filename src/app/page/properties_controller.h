@@ -102,8 +102,6 @@ private:
   luciole::CancelToken m_iconQuery;
   // The single shown folder's location, when the header offers an icon change.
   std::optional<luciole::Location> m_identityLocation;
-  // Targets of the last shown dialog, for returning from the folder picker.
-  std::vector<luciole::DirectoryEntry> m_lastTargets;
   // Location, size and similar entry facts that lead the Details table.
   luciole::MetadataFields m_basicFields;
   float m_metadataWidth = 0;

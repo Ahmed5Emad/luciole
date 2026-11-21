@@ -101,7 +101,7 @@ namespace {
              .visible = onChangeIcon != nullptr,
              .participatesInLayout = onChangeIcon != nullptr},
             ui::button({
-                .text = "Change icon",
+                .text = "Change Icon…",
                 .variant = ButtonVariant::Ghost,
                 .onClick = [onChangeIcon] {
                   if (onChangeIcon) {
@@ -632,7 +632,6 @@ void PropertiesController::show(const std::vector<luciole::DirectoryEntry>& targ
   luciole::FileIcon* identity = nullptr;
   std::function<void()> changeIcon;
   std::optional<luciole::Location> identityLocation;
-  m_lastTargets = targets;
   if (!multiple && targets.size() == 1 && m_changeFolderIcon) {
     const auto& entry = targets.front();
     const auto location = entry.location();
@@ -640,11 +639,9 @@ void PropertiesController::show(const std::vector<luciole::DirectoryEntry>& targ
         && !entry.symlink
         && location.nativePath().has_value()
         && !location.isTrash()) {
-      changeIcon = [this, location] {
-        m_changeFolderIcon(location, [this] {
-          if (!m_lastTargets.empty()) {
-            show(m_lastTargets);
-          }
+      changeIcon = [this, location, targets, captureCurrentLocation] {
+        m_changeFolderIcon(location, [this, targets, captureCurrentLocation] {
+          show(targets, captureCurrentLocation);
         });
       };
       identityLocation = location;
