@@ -57,7 +57,7 @@ To understand the values and philosophy guiding the project, read our [ethos](ht
 
 ## Install and run
 
-See the [installation guide](docs/user/installation.md) for Arch Linux dependencies, source builds and Nix. Then launch Luciole from your application menu, or from a terminal:
+See the [installation guide](docs/user/installation.md) for Arch Linux, Fedora, Debian and Ubuntu packages, source builds and Nix. Then launch Luciole from your application menu, or from a terminal:
 
 ```sh
 luciole
