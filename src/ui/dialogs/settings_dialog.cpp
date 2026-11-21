@@ -102,6 +102,13 @@ SettingsDialog::SettingsDialog(
        {"Filter Current Folder", luciole::TypingMode::Filter},
        {"Select Names", luciole::TypingMode::Typeahead}}
   );
+  addChoice(
+      P::DropAction, "When Dropping Files",
+      {{"Ask What to Do", luciole::DropAction::Menu},
+       {"Copy Here", luciole::DropAction::Copy},
+       {"Move Here", luciole::DropAction::Move}},
+      "Without a modifier key"
+  );
   addBool(P::SingleClickLocationEdit, "Single-Click Location Bar to Edit");
   addBool(P::ConfirmPermanentDeletion, "Confirm Permanent Deletion");
   addBool(P::ShowPermanentDeletion, "Show Delete Permanently in Context Menus");
