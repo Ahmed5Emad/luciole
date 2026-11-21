@@ -14,6 +14,7 @@
 #include "cursor-shape-v1-client-protocol.h"
 #include "fs/gio_ptr.h"
 #include "platform/desktop_integration.h"
+#include "render/animation/motion_service.h"
 #include "render/render_context.h"
 #include "render/scene/input_area.h"
 #include "render/scene/input_dispatcher.h"
@@ -63,6 +64,7 @@ WorkspaceApplication::WorkspaceApplication(
       // Live Style bindings update open widgets; controls built afterwards pick the values up directly.
       Style::setCornerRadiusScale(static_cast<float>(m_defaults.cornerRadiusScale));
       Style::setCloseButtonsEnabled(m_defaults.showCloseButtons);
+      MotionService::instance().setEnabled(!m_defaults.reduceAnimations);
     }
     for (auto& [id, page] : m_pages) {
       (void)id;

@@ -251,6 +251,7 @@ namespace {
       describe(P::AlwaysShowStatusBar, "always_show_status_bar", [](S& s) -> auto& { return s.alwaysShowStatusBar; }),
       describe(P::CompactMenus, "compact_menus", [](S& s) -> auto& { return s.compactMenus; }),
       describe(P::ShowCloseButtons, "show_close_buttons", [](S& s) -> auto& { return s.showCloseButtons; }),
+      describe(P::ReduceAnimations, "reduce_animations", [](S& s) -> auto& { return s.reduceAnimations; }),
       describe(P::UseSSD, "use_ssd", [](S& s) -> auto& { return s.useSSD; }),
       describe(
           P::BackgroundOpacity, "background_opacity", [](S& s) -> auto& { return s.backgroundOpacity; },

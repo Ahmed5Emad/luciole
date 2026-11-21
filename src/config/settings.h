@@ -32,6 +32,7 @@ namespace luciole {
     bool alwaysShowStatusBar = false;
     bool compactMenus = true;
     bool showCloseButtons = true;
+    bool reduceAnimations = false;
     bool useSSD = true;
     double backgroundOpacity = 1.0; // 0 (clear) to 1 (opaque) for the window background.
     double cornerRadiusScale = 1.0; // 0 (square) to 2; 1 is the default rounding.
@@ -86,6 +87,7 @@ namespace luciole {
     AlwaysShowStatusBar,
     CompactMenus,
     ShowCloseButtons,
+    ReduceAnimations,
     UseSSD,
     BackgroundOpacity,
     CornerRadiusScale,
@@ -174,6 +176,7 @@ namespace luciole {
     static constexpr PreferenceKey<bool> AlwaysShowStatusBar{Id::AlwaysShowStatusBar};
     static constexpr PreferenceKey<bool> CompactMenus{Id::CompactMenus};
     static constexpr PreferenceKey<bool> ShowCloseButtons{Id::ShowCloseButtons};
+    static constexpr PreferenceKey<bool> ReduceAnimations{Id::ReduceAnimations};
     static constexpr PreferenceKey<bool> UseSSD{Id::UseSSD};
     static constexpr PreferenceKey<double> BackgroundOpacity{Id::BackgroundOpacity};
     static constexpr PreferenceKey<double> CornerRadiusScale{Id::CornerRadiusScale};

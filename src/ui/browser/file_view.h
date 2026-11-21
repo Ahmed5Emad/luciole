@@ -52,6 +52,12 @@ namespace luciole {
     void setPathEntry(std::optional<EntryId> entry) { m_pathEntry = entry; }
 
   private:
+    struct TileState {
+      std::optional<EntryId> entry;
+      bool visible = false;
+    };
+    void reveal(Node& tile, EntryId id);
+
     BrowserController& m_browser;
     FileIconCache& m_icons;
     ThumbnailService& m_thumbnails;
@@ -86,5 +92,8 @@ namespace luciole {
     std::uint64_t m_areaGeneration = 0;
     bool m_areaSelection = false;
     bool m_areaToggle = false;
+    std::unordered_map<const Node*, TileState> m_tiles;
+    std::unordered_set<EntryId> m_revealed; // Entries that already faded in during this visit.
+    std::uint64_t m_revealVisit = 0;
   };
 } // namespace luciole

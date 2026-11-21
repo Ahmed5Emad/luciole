@@ -129,6 +129,7 @@ SettingsDialog::SettingsDialog(
   addBool(P::AlwaysShowStatusBar, "Always Show Status Bar");
   addBool(P::CompactMenus, "Compact Context Menus");
   addBool(P::ShowCloseButtons, "Show Close Buttons");
+  addBool(P::ReduceAnimations, "Reduce Animations");
   card("Sidebar");
   addBool(P::ShowSidebar, "Show Sidebar");
   addBool(P::SidebarTree, "Show Folder Tree");
