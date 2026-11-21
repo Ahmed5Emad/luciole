@@ -1,6 +1,7 @@
 #include "fs/file_query.h"
 
 #include "fs/background_job.h"
+#include "fs/custom_icons.h"
 #include "fs/gio_interop.h"
 #include "fs/native_listing.h"
 
@@ -160,6 +161,13 @@ void luciole::queryFileIcon(
         const GErrorPtr error(rawError);
         if (!info) {
           throw FileErrorException(error ? fileError(*error) : FileError{FileErrorKind::Other, "Icon unavailable"});
+        }
+        if (g_file_info_get_file_type(info.get()) == G_FILE_TYPE_DIRECTORY) {
+          if (const auto path = location.nativePath()) {
+            if (auto custom = customFolderIcon(*path)) {
+              return std::move(*custom);
+            }
+          }
         }
         return readFileIcon(info.get(), location);
       },
