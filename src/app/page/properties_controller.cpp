@@ -410,9 +410,7 @@ PropertiesController::buildGeneral(const std::vector<luciole::DirectoryEntry>& t
       field("Size", size ? size.get() : "Unknown");
     }
     if (m_driveFacts) {
-      const std::string filesystem = m_driveFilesystemInfo && !m_driveFilesystemInfo->type.empty()
-          ? m_driveFilesystemInfo->type
-          : m_driveFacts->filesystem;
+      const std::string filesystem = m_driveFilesystemInfo ? m_driveFilesystemInfo->type : std::string{};
       field("File System", filesystem.empty() ? "Unknown" : filesystem);
     }
     if (entry.modifiedSeconds && *entry.modifiedSeconds <= static_cast<std::uint64_t>(G_MAXINT64)) {
@@ -878,10 +876,8 @@ void PropertiesController::queryDriveFilesystem(const luciole::Location& root) {
             found->value = std::move(value);
           }
         };
-        const std::string filesystem =
-            !m_driveFilesystemInfo->type.empty() ? m_driveFilesystemInfo->type : m_driveFacts->filesystem;
+        const std::string filesystem = m_driveFilesystemInfo->type;
         replace("File System", filesystem.empty() ? "Unknown" : filesystem);
-        replace("Free space", driveFreeSpace());
         m_metadataDirty = true;
         m_page.requestSync();
       }

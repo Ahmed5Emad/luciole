@@ -42,10 +42,8 @@ namespace {
     if (!drive.root) {
       return "Not mounted";
     }
-    std::string text;
-    if (const auto path = drive.root->nativePath()) {
-      text += *path;
-    }
+    // Edit text covers both native paths and URIs, so network mounts keep an address line.
+    std::string text = luciole::locationEditText(*drive.root);
     if (drive.usage && drive.usage->size > 0) {
       const auto used = std::min(drive.usage->used, drive.usage->size);
       const auto free = drive.usage->size - used;
@@ -53,8 +51,11 @@ namespace {
       const luciole::GString sizeText(g_format_size_full(drive.usage->size, G_FORMAT_SIZE_IEC_UNITS));
       const auto percent =
           static_cast<int>(std::llround(100.0 * static_cast<double>(used) / static_cast<double>(drive.usage->size)));
+      if (!text.empty()) {
+        text += '\n';
+      }
       text += std::format(
-          "\n{} free of {} ({}% used)", freeText ? freeText.get() : "?", sizeText ? sizeText.get() : "?", percent
+          "{} free of {} ({}% used)", freeText ? freeText.get() : "?", sizeText ? sizeText.get() : "?", percent
       );
     }
     return text;
