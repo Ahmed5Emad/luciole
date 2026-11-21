@@ -413,7 +413,7 @@ PropertiesController::buildGeneral(const std::vector<luciole::DirectoryEntry>& t
       const std::string filesystem = m_driveFilesystemInfo && !m_driveFilesystemInfo->type.empty()
           ? m_driveFilesystemInfo->type
           : m_driveFacts->filesystem;
-      field("File system", filesystem.empty() ? "Unknown" : filesystem);
+      field("File System", filesystem.empty() ? "Unknown" : filesystem);
     }
     if (entry.modifiedSeconds && *entry.modifiedSeconds <= static_cast<std::uint64_t>(G_MAXINT64)) {
       const std::unique_ptr<GDateTime, decltype(&g_date_time_unref)> date(
@@ -880,7 +880,7 @@ void PropertiesController::queryDriveFilesystem(const luciole::Location& root) {
         };
         const std::string filesystem =
             !m_driveFilesystemInfo->type.empty() ? m_driveFilesystemInfo->type : m_driveFacts->filesystem;
-        replace("File system", filesystem.empty() ? "Unknown" : filesystem);
+        replace("File System", filesystem.empty() ? "Unknown" : filesystem);
         replace("Free space", driveFreeSpace());
         m_metadataDirty = true;
         m_page.requestSync();
