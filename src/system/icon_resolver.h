@@ -64,8 +64,8 @@ public:
   static std::string activeThemeName();
   // Every icon name the active theme chain (plus hicolor/Adwaita fallbacks)
   // can resolve: stems of the .svg/.png files in the plan's search, base and
-  // pixmap dirs. Sorted by name, unique. Blocking (walks the theme dirs):
-  // worker only.
+  // pixmap dirs. Sorted by name, unique. Blocking (walks the theme dirs once per theme generation, then copies the
+  // cached list): worker only.
   static std::vector<ThemedIcon> listThemeIcons();
   // The active theme chain's roots when its index.theme sets FollowsColorScheme (KDE), else empty.
   static std::vector<std::string> colorSchemeThemeRoots();

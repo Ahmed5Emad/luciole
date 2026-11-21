@@ -834,8 +834,15 @@ std::string IconResolver::findIcon(const std::string& name, int targetSize) cons
 }
 
 std::vector<ThemedIcon> IconResolver::listThemeIcons() {
+  // A large theme takes a few hundred ms to walk; reopening the picker reuses the list until the theme changes.
+  static std::mutex mutex;
+  static std::optional<std::pair<std::uint64_t, std::vector<ThemedIcon>>> cached;
+  const std::scoped_lock lock(mutex);
   IconResolver resolver;
   resolver.ensureFresh();
+  if (cached && cached->first == resolver.m_generation) {
+    return cached->second;
+  }
   const auto plan = resolver.m_plan;
   if (!plan) {
     return {};
@@ -869,23 +876,24 @@ std::vector<ThemedIcon> IconResolver::listThemeIcons() {
       continue;
     }
     for (const auto& item : items) {
+      auto stem = item.path().filename().string();
+      if (!stem.ends_with(".svg") && !stem.ends_with(".png")) {
+        continue;
+      }
+      stem.resize(stem.size() - 4);
+      // Dedupe before the type check: it stats every symlink, and symlinked themes repeat each name per size.
+      if (stem.empty() || seen.contains(stem)) {
+        continue;
+      }
       if (!item.is_regular_file(ec)) {
         ec.clear();
         continue;
       }
-      const auto filename = item.path().filename().string();
-      for (const char* ext : {".svg", ".png"}) {
-        const std::string_view suffix(ext);
-        if (filename.size() > suffix.size() && filename.ends_with(suffix)) {
-          const std::string stem = filename.substr(0, filename.size() - suffix.size());
-          if (!stem.empty() && seen.emplace(stem).second) {
-            names.push_back({stem, dir.context});
-          }
-          break;
-        }
-      }
+      seen.insert(stem);
+      names.push_back({std::move(stem), dir.context});
     }
   }
   std::ranges::sort(names, {}, &ThemedIcon::name);
+  cached.emplace(resolver.m_generation, names);
   return names;
 }
