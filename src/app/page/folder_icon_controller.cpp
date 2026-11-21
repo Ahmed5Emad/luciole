@@ -36,7 +36,7 @@ void FolderIconController::open(const luciole::Location& folder, std::function<v
       [folder] {
         return LoadResult{
             .names = IconResolver::listThemeIcons(),
-            .current = luciole::readFolderCustomIcon(folder, nullptr),
+            .current = luciole::readFolderCustomIcon(folder),
         };
       },
       [this, generation](luciole::JobResult<LoadResult> reply) {

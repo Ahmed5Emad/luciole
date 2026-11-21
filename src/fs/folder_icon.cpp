@@ -1,177 +1,23 @@
 #include "fs/folder_icon.h"
 
+#include "fs/custom_icons.h"
 #include "fs/gio_interop.h"
 
-#include <algorithm>
-#include <array>
 #include <cerrno>
-#include <fcntl.h>
+#include <memory>
 #include <string>
-#include <string_view>
 #include <unistd.h>
 
-namespace {
-  std::optional<luciole::FolderCustomIcon> normalize(std::string value, luciole::FolderIconOrigin origin) {
-    const auto begin = value.find_first_not_of(" \t\r\n");
-    if (begin == std::string::npos) {
-      return std::nullopt;
-    }
-    const auto end = value.find_last_not_of(" \t\r\n");
-    value = value.substr(begin, end - begin + 1);
-    if (value.empty()) {
-      return std::nullopt;
-    }
-    if (value.front() == '/') {
-      return luciole::FolderCustomIcon{
-          .name = std::move(value),
-          .origin = origin,
-          .isPath = true,
-      };
-    }
-    // A relative path is neither a theme name nor usable: refuse it rather
-    // than resolving it against the folder.
-    if (value.contains('/')) {
-      return std::nullopt;
-    }
-    return luciole::FolderCustomIcon{
-        .name = std::move(value),
-        .origin = origin,
-        .isPath = false,
-    };
-  }
-
-  // custom-icon holds a file:// URI; anything else there is not an image.
-  std::optional<std::string> fileUriToPath(const char* uri) {
-    if (uri == nullptr || !std::string_view(uri).starts_with("file://")) {
-      return std::nullopt;
-    }
-    GError* rawError = nullptr;
-    const luciole::GString path(g_filename_from_uri(uri, nullptr, &rawError));
-    g_clear_error(&rawError);
-    if (!path || *path == '\0') {
-      return std::nullopt;
-    }
-    return std::string(path.get());
-  }
-
-  std::optional<luciole::FolderCustomIcon> metadataIcon(GFileInfo* info) {
-    if (info == nullptr) {
-      return std::nullopt;
-    }
-    if (const char* uri = g_file_info_get_attribute_string(info, luciole::kFolderCustomIconAttribute)) {
-      if (auto path = fileUriToPath(uri)) {
-        return luciole::FolderCustomIcon{
-            .name = std::move(*path), .origin = luciole::FolderIconOrigin::Metadata, .isPath = true
-        };
-      }
-    }
-    if (const char* name = g_file_info_get_attribute_string(info, luciole::kFolderCustomIconNameAttribute)) {
-      return normalize(name, luciole::FolderIconOrigin::Metadata);
-    }
+std::optional<std::string> luciole::readFolderCustomIcon(const Location& folder) {
+  const auto path = folder.nativePath();
+  if (!path) {
     return std::nullopt;
   }
-
-  std::optional<luciole::FolderCustomIcon>
-  directoryFileIcon(const std::string& folderPath, luciole::FolderIconOrigin origin) {
-    const std::string path = folderPath + "/.directory";
-    const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
-    if (fd < 0) {
-      return std::nullopt;
-    }
-    std::array<char, 256U * 1024U + 1> bytes{};
-    std::size_t count = 0;
-    while (count < bytes.size()) {
-      const auto chunk = ::read(fd, bytes.data() + count, bytes.size() - count);
-      if (chunk <= 0) {
-        break;
-      }
-      count += static_cast<std::size_t>(chunk);
-    }
-    ::close(fd);
-    if (count == bytes.size()) {
-      return std::nullopt;
-    }
-    const std::unique_ptr<GKeyFile, decltype(&g_key_file_unref)> file(g_key_file_new(), &g_key_file_unref);
-    if (!g_key_file_load_from_data(file.get(), bytes.data(), count, G_KEY_FILE_NONE, nullptr)) {
-      return std::nullopt;
-    }
-    const luciole::GString icon(g_key_file_get_string(file.get(), "Desktop Entry", "Icon", nullptr));
-    if (!icon) {
-      return std::nullopt;
-    }
-    return normalize(icon.get(), origin);
-  }
-} // namespace
-
-std::optional<luciole::FolderCustomIcon> luciole::folderIconFromInfo(GFileInfo* info) { return metadataIcon(info); }
-
-std::optional<luciole::FolderCustomIcon> luciole::folderIconFromDirectoryFile(const std::string& folderPath) {
-  return directoryFileIcon(folderPath, FolderIconOrigin::DirectoryFile);
-}
-
-std::optional<luciole::FolderCustomIcon> luciole::folderIconFor(GFileInfo* info, const Location& entryLocation) {
-  if (auto icon = folderIconFromInfo(info)) {
-    return icon;
-  }
-  if (const auto path = entryLocation.nativePath()) {
-    return folderIconFromDirectoryFile(*path);
-  }
-  return std::nullopt;
-}
-
-std::optional<luciole::FolderCustomIcon> luciole::folderIconForLocal(const std::string& parentPath, const char* name) {
-  if (name == nullptr || *name == '\0') {
+  auto icon = customFolderIcon(*path);
+  if (!icon) {
     return std::nullopt;
   }
-  const std::string folderPath = parentPath + '/' + name;
-  // GVFS metadata first (a file:// image URI, then a theme name), matching
-  // the enumerated-info order; .directory last.
-  const std::string attributes = std::string(kFolderCustomIconAttribute) + "," + kFolderCustomIconNameAttribute;
-  GError* rawError = nullptr;
-  const GioPtr<GFileInfo> info(g_file_query_info(
-      gioFile(Location::fromPath(folderPath)).get(), attributes.c_str(), G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, nullptr,
-      &rawError
-  ));
-  GErrorPtr error(rawError);
-  if (info) {
-    if (auto icon = metadataIcon(info.get())) {
-      return icon;
-    }
-  }
-  return directoryFileIcon(folderPath, FolderIconOrigin::DirectoryFile);
-}
-
-void luciole::applyFolderCustomIcon(FileIconSource& source, const FolderCustomIcon& icon) {
-  if (icon.isPath) {
-    source.filePath = icon.name;
-    return;
-  }
-  if (!std::ranges::contains(source.names, icon.name)) {
-    source.names.insert(source.names.begin(), icon.name);
-  }
-}
-
-std::optional<std::string> luciole::readFolderCustomIcon(const Location& folder, GCancellable* cancellable) {
-  const std::string attributes = std::string(G_FILE_ATTRIBUTE_STANDARD_TYPE ",")
-      + kFolderCustomIconAttribute
-      + ","
-      + kFolderCustomIconNameAttribute;
-  GError* rawError = nullptr;
-  const GioPtr<GFileInfo> info(g_file_query_info(
-      gioFile(folder).get(), attributes.c_str(), G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS, cancellable, &rawError
-  ));
-  const GErrorPtr error(rawError);
-  if (info && g_file_info_get_file_type(info.get()) == G_FILE_TYPE_DIRECTORY) {
-    if (auto icon = metadataIcon(info.get())) {
-      return icon->name;
-    }
-  }
-  if (const auto path = folder.nativePath()) {
-    if (auto icon = folderIconFromDirectoryFile(*path)) {
-      return icon->name;
-    }
-  }
-  return std::nullopt;
+  return icon->filePath.empty() ? std::move(icon->names.front()) : std::move(icon->filePath);
 }
 
 namespace {
