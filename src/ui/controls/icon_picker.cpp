@@ -36,7 +36,7 @@ public:
     rebuildVisible({}, Scope::All, {});
   }
 
-  // Scope dropdown entries after "All icons" and "Folders only": one per
+  // Scope dropdown entries after "All Icons" and "Folders Only": one per
   // theme context present, with "Unthemed" last for icons found only outside
   // any indexed theme directory.
   std::vector<std::string> contexts() const {
@@ -179,7 +179,7 @@ IconPicker::IconPicker(luciole::FileIconCache& icons, std::vector<ThemedIcon> na
   luciole::applyDialogStyle(*this);
   addChild(
       luciole::dialogHeader(
-          "Choose folder icon", "folder",
+          "Choose Folder Icon", "folder",
           [this] {
             if (m_onCancel) {
               m_onCancel();
@@ -190,8 +190,8 @@ IconPicker::IconPicker(luciole::FileIconCache& icons, std::vector<ThemedIcon> na
   );
 
   m_adapter = std::make_unique<IconGridAdapter>(*m_icons, std::move(names));
-  m_scopeOptions.emplace_back("All icons");
-  m_scopeOptions.emplace_back("Folders only");
+  m_scopeOptions.emplace_back("All Icons");
+  m_scopeOptions.emplace_back("Folders Only");
   for (const auto& context : m_adapter->contexts()) {
     m_scopeOptions.emplace_back(context);
   }
@@ -256,7 +256,7 @@ IconPicker::IconPicker(luciole::FileIconCache& icons, std::vector<ThemedIcon> na
           },
           ui::button({
               .out = &m_resetButton,
-              .text = "Reset to default",
+              .text = "Reset to Default",
               .variant = ButtonVariant::Ghost,
               .onClick =
                   [this] {
@@ -279,7 +279,7 @@ IconPicker::IconPicker(luciole::FileIconCache& icons, std::vector<ThemedIcon> na
           }),
           ui::button({
               .out = &m_applyButton,
-              .text = "Use icon",
+              .text = "Use Icon",
               .variant = ButtonVariant::Primary,
               .minWidth = 88.0F,
               .onClick = [this] {
@@ -308,7 +308,7 @@ IconPicker::~IconPicker() {
 
 void IconPicker::setTitle(std::string_view title) {
   if (m_title != nullptr) {
-    m_title->setText(title.empty() ? "Choose folder icon" : std::string(title));
+    m_title->setText(title.empty() ? "Choose Folder Icon" : std::string(title));
   }
 }
 
@@ -386,7 +386,7 @@ void IconPicker::applyFilter(const std::string& filter) {
   if (m_adapter == nullptr || m_grid == nullptr) {
     return;
   }
-  // Scope options are All icons, Folders only, one per theme context, then Unthemed.
+  // Scope options are All Icons, Folders Only, one per theme context, then Unthemed.
   const std::size_t selected = m_scopeSelect != nullptr ? m_scopeSelect->selectedIndex() : 0;
   const std::size_t options = m_scopeOptions.size();
   auto scope = IconGridAdapter::Scope::All;

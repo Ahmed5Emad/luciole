@@ -53,7 +53,7 @@ void FolderIconController::showPicker(LoadResult result, std::uint64_t generatio
     return;
   }
   auto picker = std::make_unique<IconPicker>(m_icons, std::move(result.names));
-  picker->setTitle("Choose folder icon");
+  picker->setTitle("Choose Folder Icon");
   picker->setInitialIcon(std::move(result.current));
   auto* control = picker.get();
   picker->setOnCancel([this] { cancelPicker(); });
