@@ -97,6 +97,12 @@ Write test checks with `TEST_CHECK` and `TEST_NEAR` from `tests/test_check.h`, n
 
 Tests are listed in the table in `tests/meson.build`: each links the module libraries it exercises and never lists `src/` files.
 
+## Contribution Rules
+
+### One change per pull request
+
+Keep each pull request to a single feature, fix, or refactor. Unrelated changes, including drive-by cleanups and formatting of untouched code, go in separate pull requests so each can be reviewed and reverted on its own.
+
 ## Commit Messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): summary`, or `type: summary` when no scope helps, with lowercase types such as `feat`, `fix`, `refactor`, `chore`, `test`, or `docs`. Keep the summary concise, imperative, and specific.
