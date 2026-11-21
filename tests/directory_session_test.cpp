@@ -1109,8 +1109,9 @@ namespace {
     fs::create_symlink("file", fixture.path / "folder-link");
     session.refresh();
     ready(pump, session);
+    // The link pass sets the target kind and the target's icon together.
     pump.until([&] { return !linksToDirectory(session, "folder-link"); });
-    TEST_CHECK(*entry(session, "folder-link").icon == gioIcon(fixture.location().child("folder-link")));
+    TEST_CHECK(*entry(session, "folder-link").icon == *entry(session, "file").icon);
   }
 
   void testNetworkFilesystem() {
