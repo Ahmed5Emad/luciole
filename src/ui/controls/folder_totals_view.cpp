@@ -116,23 +116,15 @@ void FolderTotalsView::sync(float width) {
     note += "\n" + value.error;
   }
   m_note->setText(note);
-  const bool hasFreeSpace = m_freeSpace != nullptr && !m_freeSpace->text().empty();
-  if (m_freeSpace != nullptr) {
-    m_freeSpace->setVisible(hasFreeSpace);
-    m_freeSpace->setParticipatesInLayout(hasFreeSpace);
-  }
-  for (auto* label : {m_status, m_counts, m_note, m_freeSpace}) {
-    if (label != nullptr) {
-      label->setMaxWidth(std::max(1.0F, width));
-    }
+  const bool hasFreeSpace = !m_freeSpace->text().empty();
+  m_freeSpace->setVisible(hasFreeSpace);
+  m_freeSpace->setParticipatesInLayout(hasFreeSpace);
+  for (auto* label : {m_status, m_counts, m_freeSpace, m_note}) {
+    label->setMaxWidth(std::max(1.0F, width));
   }
   m_stop->setVisible(running);
   m_stop->setParticipatesInLayout(running);
   m_stop->setEnabled(!value.cancelRequested);
 }
 
-void FolderTotalsView::setFreeSpace(const std::string& text) {
-  if (m_freeSpace != nullptr) {
-    m_freeSpace->setText(text);
-  }
-}
+void FolderTotalsView::setFreeSpace(const std::string& text) { m_freeSpace->setText(text); }
