@@ -17,13 +17,6 @@ namespace luciole {
   class FileIcon;
   class FileIconCache;
   struct DirectoryEntry;
-  // Filesystem facts for a mounted drive shown in Properties: the backing
-  // device and, when known without a query, its type. Free space always comes
-  // from a live query so it never goes stale.
-  struct DriveFacts {
-    std::string device;
-    std::string filesystem;
-  };
 } // namespace luciole
 
 struct KeyboardEvent;
@@ -50,11 +43,9 @@ public:
   );
 
   // `captureCurrentLocation` reads the permissions of the first target's location instead of its listed entry.
-  // When `drive` is set, the dialog shows filesystem facts for a mounted drive.
-  void show(
-      const std::vector<luciole::DirectoryEntry>& targets, bool captureCurrentLocation = false,
-      std::optional<luciole::DriveFacts> drive = std::nullopt
-  );
+  // `drive` marks the single target as a mounted drive's root: the dialog adds its file system type and free space.
+  void
+  show(const std::vector<luciole::DirectoryEntry>& targets, bool captureCurrentLocation = false, bool drive = false);
   // Rebinds the header icon after the folder's custom icon changed elsewhere.
   void refreshFolderIcon(const luciole::Location& folder);
   // Owned permission job change: sync the dialog on the next frame, or report a job whose dialog closed.
@@ -119,9 +110,8 @@ private:
   luciole::CancelToken m_iconQuery;
   // The single shown folder's location, when the header offers an icon change.
   std::optional<luciole::Location> m_identityLocation;
-  // Drive facts for a mounted-drive dialog, and the filesystem query filling
+  // The mounted drive's root for a drive dialog, and the filesystem query filling
   // in its type and free space.
-  std::optional<luciole::DriveFacts> m_driveFacts;
   std::optional<luciole::Location> m_driveRoot;
   // Set when the filesystem query answers, even on failure (as all-unknown).
   std::optional<luciole::FilesystemFacts> m_driveFilesystemInfo;

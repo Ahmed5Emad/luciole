@@ -224,7 +224,7 @@ void PropertiesController::syncMetadata() {
   }
   if (m_folderTotals) {
     std::erase_if(fields, [](const auto& field) { return field.label == "Folder Contents"; });
-    if (m_driveFacts) {
+    if (m_driveRoot) {
       m_folderTotals->setFreeSpace(driveFreeSpace());
     }
     m_folderTotals->sync(m_metadataWidth);
@@ -409,7 +409,7 @@ PropertiesController::buildGeneral(const std::vector<luciole::DirectoryEntry>& t
       const luciole::GString size(entry.size ? g_format_size_full(*entry.size, G_FORMAT_SIZE_IEC_UNITS) : nullptr);
       field("Size", size ? size.get() : "Unknown");
     }
-    if (m_driveFacts) {
+    if (m_driveRoot) {
       const std::string filesystem = m_driveFilesystemInfo ? m_driveFilesystemInfo->type : std::string{};
       field("File System", filesystem.empty() ? "Unknown" : filesystem);
     }
@@ -589,8 +589,7 @@ PropertiesController::Body PropertiesController::buildBody(
 }
 
 void PropertiesController::show(
-    const std::vector<luciole::DirectoryEntry>& targets, bool captureCurrentLocation,
-    std::optional<luciole::DriveFacts> drive
+    const std::vector<luciole::DirectoryEntry>& targets, bool captureCurrentLocation, bool drive
 ) {
   if (targets.empty()) {
     return;
@@ -601,11 +600,10 @@ void PropertiesController::show(
     m_page.actionError("A Properties request is still finishing.");
     return;
   }
-  m_driveFacts = std::move(drive);
   m_driveRoot.reset();
   m_driveFilesystemInfo.reset();
   m_filesystemQuery.cancel();
-  if (m_driveFacts && targets.size() == 1) {
+  if (drive && targets.size() == 1) {
     m_driveRoot = targets.front().location();
   }
   const bool editable = !targets.empty() && targets.size() <= 4096;
@@ -656,7 +654,7 @@ void PropertiesController::show(
         && !entry.symlink
         && location.nativePath().has_value()
         && !location.isTrash()) {
-      changeIcon = [this, location, targets, captureCurrentLocation, drive = m_driveFacts] {
+      changeIcon = [this, location, targets, captureCurrentLocation, drive] {
         m_changeFolderIcon(location, [this, targets, captureCurrentLocation, drive] {
           show(targets, captureCurrentLocation, drive);
         });
@@ -781,7 +779,7 @@ void PropertiesController::show(
         }
       });
     }
-    if (m_driveFacts && m_driveRoot) {
+    if (m_driveRoot) {
       queryDriveFilesystem(*m_driveRoot);
     }
     // Start on the tabs rather than the header's close button.
@@ -861,7 +859,7 @@ void PropertiesController::queryDriveFilesystem(const luciole::Location& root) {
   const auto serial = ++m_filesystemSerial;
   luciole::queryFilesystemFacts(
       root, m_filesystemQuery, [this, serial, root](std::expected<luciole::FilesystemFacts, luciole::FileError> facts) {
-        if (m_filesystemSerial != serial || !m_driveFacts || m_driveRoot != root || m_page.popupSurface() == nullptr) {
+        if (m_filesystemSerial != serial || m_driveRoot != root || m_page.popupSurface() == nullptr) {
           return;
         }
         m_driveFilesystemInfo = luciole::FilesystemFacts{};
@@ -889,7 +887,6 @@ void PropertiesController::close() {
   m_selectionMetadata.clear();
   m_iconQuery.cancel();
   m_filesystemQuery.cancel();
-  m_driveFacts.reset();
   m_driveRoot.reset();
   m_driveFilesystemInfo.reset();
   m_identityIcon = nullptr;

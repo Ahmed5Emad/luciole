@@ -307,9 +307,7 @@ void SidebarController::openDriveMenu(const std::string& key, float x, float y) 
               .modifiedSeconds = std::nullopt
           };
           entry.setDisplayName(target->label);
-          m_properties.show(
-              {std::move(entry)}, true, luciole::DriveFacts{.device = target->device, .filesystem = target->filesystem}
-          );
+          m_properties.show({std::move(entry)}, true, true);
         }
       },
       {x, y, 1, 1}

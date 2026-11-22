@@ -44,10 +44,6 @@ namespace luciole {
     std::string key;
     std::string label;
     std::string glyph;
-    // Backing block device ("/dev/nvme0n1p4") when known, for tooltips and Properties.
-    std::string device;
-    // Filesystem type ("ext4") when known without a query; Properties fills in the rest.
-    std::string filesystem;
     // Set while mounted.
     std::optional<Location> root;
     // Set while mounted and GIO allows removing the drive.
