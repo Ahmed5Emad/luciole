@@ -14,6 +14,7 @@
 #include "platform/desktop_integration.h"
 #include "render/scene/input_dispatcher.h"
 #include "ui/browser/file_icon.h"
+#include "ui/browser/places_sidebar.h"
 #include "ui/builders.h"
 #include "ui/controls/acl_editor.h"
 #include "ui/controls/bulk_acl_editor.h"
@@ -844,14 +845,7 @@ std::string PropertiesController::driveFreeSpace() const {
   if (size == 0) {
     return "Unknown";
   }
-  const auto used = std::min(m_driveFilesystemInfo->free <= size ? size - m_driveFilesystemInfo->free : size, size);
-  const auto free = size - used;
-  const luciole::GString freeText(g_format_size_full(free, G_FORMAT_SIZE_IEC_UNITS));
-  const luciole::GString sizeText(g_format_size_full(size, G_FORMAT_SIZE_IEC_UNITS));
-  const auto percent = static_cast<int>(used * 100 / size);
-  return std::format(
-      "{} free of {} ({}% used)", freeText ? freeText.get() : "?", sizeText ? sizeText.get() : "?", percent
-  );
+  return luciole::driveSpaceText({.used = size - m_driveFilesystemInfo->free, .size = size});
 }
 
 void PropertiesController::queryDriveFilesystem(const luciole::Location& root) {

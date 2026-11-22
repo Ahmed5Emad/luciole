@@ -45,18 +45,10 @@ namespace {
     // Edit text covers both native paths and URIs, so network mounts keep an address line.
     std::string text = luciole::locationEditText(*drive.root);
     if (drive.usage && drive.usage->size > 0) {
-      const auto used = std::min(drive.usage->used, drive.usage->size);
-      const auto free = drive.usage->size - used;
-      const luciole::GString freeText(g_format_size_full(free, G_FORMAT_SIZE_IEC_UNITS));
-      const luciole::GString sizeText(g_format_size_full(drive.usage->size, G_FORMAT_SIZE_IEC_UNITS));
-      const auto percent =
-          static_cast<int>(std::llround(100.0 * static_cast<double>(used) / static_cast<double>(drive.usage->size)));
       if (!text.empty()) {
         text += '\n';
       }
-      text += std::format(
-          "{} free of {} ({}% used)", freeText ? freeText.get() : "?", sizeText ? sizeText.get() : "?", percent
-      );
+      text += luciole::driveSpaceText(*drive.usage);
     }
     return text;
   }
@@ -74,6 +66,16 @@ std::string_view luciole::driveRemovalLabel(DriveRemoval removal) {
     break;
   }
   return {};
+}
+
+std::string luciole::driveSpaceText(const DriveUsage& usage) {
+  const auto used = std::min(usage.used, usage.size);
+  const GString freeText(g_format_size_full(usage.size - used, G_FORMAT_SIZE_IEC_UNITS));
+  const GString sizeText(g_format_size_full(usage.size, G_FORMAT_SIZE_IEC_UNITS));
+  const auto percent = std::llround(100.0 * static_cast<double>(used) / static_cast<double>(usage.size));
+  return std::format(
+      "{} free of {} ({}% used)", freeText ? freeText.get() : "?", sizeText ? sizeText.get() : "?", percent
+  );
 }
 
 luciole::PlacesSidebar::PlacesSidebar(PinService& pins, DriveMonitor& drives) : m_pins(pins), m_drives(drives) {
